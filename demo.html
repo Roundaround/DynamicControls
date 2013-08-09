@@ -1,0 +1,69 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>DynamicControlsDemo</title>
+    <style type="text/css">
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #table {
+            width: 50%;
+            border: 2px solid gray;
+            border-radius: 4px;
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            -moz-transform: translateX(-50%);
+            -ms-transform: translateX(-50%);
+            -o-transform: translateX(-50%);
+            -webkit-transform: translateX(-50%);
+            transform: translateX(-50%);
+        }
+
+        #inputWrapper {
+            width: 300px;
+        }
+
+        input {
+            float: left;
+            margin-right: 10px;
+        }
+    </style>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
+    <script src="Scripts/jquery-2.0.3.min.js"></script>
+    <script src="Scripts/jquery-ui-1.10.3.min.js"></script>
+    <script src="dynamiccontrols.js"></script>
+    <script type="text/javascript">
+        $(function () {
+            var myTable = $('#table').dynamicTable({
+                data: [
+                    ['This is my data.', 'Row 1, Column 2', 'And a third column for good measure.'],
+                    ['Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!']
+                ]
+            });
+
+            $('#tableButton').click(function () {
+                alert(JSON.stringify(myTable.getData()));
+            });
+
+            $('#defaultData').change(function () {
+                myTable.setDefaultData($(this).val());
+            });
+        });
+    </script>
+</head>
+<body>
+    <div id="table">3</div>
+    <div id="inputWrapper">
+        <input type="button" value="Get Data" id="tableButton" />
+        <input type="text" value="Set Default Data" id="defaultData" />
+    </div>
+</body>
+</html>
