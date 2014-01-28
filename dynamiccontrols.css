@@ -1,0 +1,181 @@
+﻿[data-dcid] {
+    padding: 10px;
+}
+
+[data-dcid]:focus {
+    background-color: rgb(235, 235, 235);
+    outline: none;
+}
+
+[data-dcid] * {
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+[data-dcid] > div {
+    overflow: hidden;
+}
+
+[data-dcid] input[type="text"] {
+    width: 100%;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+[data-dcid] textarea {
+    resize: none;
+    width: 100%;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.dcSelected, .dcSubSelect, .dcSelected, .dcSubSelect {
+    background-color: rgba(220, 220, 0, 0.4);
+}
+
+.dcDisabled {
+    color: rgb(120, 120, 120);
+    cursor: default !important;
+}
+
+.dcDisabled:hover {
+    background-color: inherit !important;
+}
+
+.dcToggle {
+    position: absolute;
+    top: 6px;
+    right: 5px;
+    border: 1px solid black;
+    height: 5px;
+    width: 5px;
+    cursor: pointer;
+    background-color: white;
+}
+
+.dcToggle:hover {
+    background-color: rgb(220, 220, 220);
+}
+
+.dcBullet {
+    position: absolute;
+    top: 50%;
+    left: 4px;
+    -moz-transform: translate(0, -50%);
+    -ms-transform: translate(0, -50%);
+    -o-transform: translate(0, -50%);
+    -webkit-transform: translate(0, -50%);
+    transform: translate(0, -50%);
+    cursor: default;
+}
+
+.dcList {
+    position: relative;
+    border: 1px solid black;
+    width: 90%;
+    width: -moz-calc(100% - 200px);
+    width: -webkit-calc(100% - 200px);
+    width: calc(100% - 200px);
+    margin: 0;
+    padding: 0;
+    float: left;
+    background-color: white;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.dcList li {
+    list-style-type: none;
+}
+
+.dcList li > div {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 4px 20px;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.dcTable {
+    position: relative;
+    border-collapse: collapse;
+    border: none;
+    table-layout: fixed;
+    width: 90%;
+    width: -moz-calc(100% - 200px);
+    width: -webkit-calc(100% - 200px);
+    width: calc(100% - 200px);
+    margin: 0;
+    padding: 0;
+    float: left;
+    background-color: white;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.dcTable td {
+    padding: 0;
+    border: 1px solid black;
+}
+
+.dcTable td > div {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 4px 20px;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.dcControlWrapper {
+    width: 10%;
+    width: -moz-calc(200px);
+    width: -webkit-calc(200px);
+    width: calc(200px);
+    padding-left: 10px;
+    float: right;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.dcControlPanel {
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.dcControlPanel ul {
+    margin: 6px;
+    padding: 0;
+    text-align: center;
+}
+
+.dcControlPanel li {
+    list-style-type: none;
+    margin: 2px;
+    cursor: pointer;
+}
+
+.dcControlPanel li:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}

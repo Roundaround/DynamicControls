@@ -1,4 +1,34 @@
-﻿(function ($) {
+﻿/// <reference path="Scripts/jquery-2.0.3.js" />
+/// <reference path="Scripts/jquery-ui-1.10.3.js" />
+
+/**
+ *  DynamicControls v0.8.0
+ *  jQuery Plugin for creating and utilizing advanced data manipulation controls.
+ *  https://github.com/Roundaround/DynamicControls
+ *  Copyright (c) 2013 Evan Steinkerchner
+ *  Licensed under the GPL v2 license.
+**/
+
+/**
+ *  Changelog:
+ *
+ *  0.7.2:
+ *    ~ Moved several functions outside of objects.
+ *    ~ Wrote color parser function.
+ *    ~ Made properties private.
+ *    ~ Removed public accessor for several functions.
+ *    ~ Added public setter for default data.
+ *    ~ Removed overwrite property.
+ *    ~ Made focusColor a property.
+ *    ~ Fixed selection bug with Ctrl + Del shortcut.
+ *    ~ Reorganized fetching unique id.
+ *  0.7.4:
+ *    ~ Moved the multi-dimensional array checker outside plugin.
+ *    ~ Wrapped entire file in local scope to avoid $ conflicts.
+ *    ~ Checked if browser supports rgba before setting alpha value.
+**/
+
+(function ($) {
 
     //#region Utility functions and jQuery.clone fix.
 
@@ -9,6 +39,17 @@
 
     function isArray(obj) {
         return Object.prototype.toString.call(obj) === '[object Array]';
+    }
+
+    function isArrayOfArrays(obj) {
+        if (!isArray(obj)) return false;
+
+        var flag = true;
+        for (var i = 0; i < obj.length ; i++) {
+            if (!isArray(obj[i])) return false;
+        }
+
+        return true;
     }
 
     $.fn.setCursorPosition = function (position) {
@@ -54,12 +95,14 @@
         };
     })($.fn.clone)
 
+
+
     //#endregion
 
     //#region DynamicList
 
     $.fn.dynamicList = function (args) {
-        var Ω = this;
+        var Ω = $(this);
         if (Ω.css('display') !== 'block')
             throw new Error('Invalid container for dynamicList.');
 
@@ -116,25 +159,29 @@
         var controlWrapper = $(document.createElement('div')).addClass('dcControlWrapper').appendTo(wrapper);
         var controlPanel = $(document.createElement('div')).addClass('dcControlPanel').appendTo(controlWrapper);
         var controlList = $(document.createElement('ul')).appendTo(controlPanel);
-
-        var control_select = $(document.createElement('li')).addClass('dcIconSelect').text('Select All').click(selectAll).appendTo(controlList);
-        var control_deselect = $(document.createElement('li')).addClass('dcIconDeselect').text('Deselect All').click(clearSelection).appendTo(controlList);
-        var control_moveUp = $(document.createElement('li')).addClass('dcIconMoveUp').text('Move Up').click(function (e) {
+        var control_select = $(document.createElement('li')).text('Select All').click(selectAll).appendTo(controlList);
+        var control_deselect = $(document.createElement('li')).text('Deselect All').click(clearSelection).appendTo(controlList);
+        var control_moveUp = $(document.createElement('li')).text('Move Up').click(function (e) {
             if (!$(this).hasClass('dcDisabled'))
                 moveUp();
         }).appendTo(controlList);
-        var control_moveDown = $(document.createElement('li')).addClass('dcIconMoveDown').text('Move Down').click(function (e) {
+        var control_moveDown = $(document.createElement('li')).text('Move Down').click(function (e) {
             if (!$(this).hasClass('dcDisabled'))
                 moveDown();
         }).appendTo(controlList);
-        var control_insertAfter = $(document.createElement('li')).addClass('dcIconInsert').text('Insert After').click(function (e) {
+        var control_insertBefore = $(document.createElement('li')).text('Insert Before').click(function (e) {
+            if (!$(this).hasClass('dcDisabled')) {
+                insertBefore();
+                focusInSelection();
+            }
+        }).appendTo(controlList);
+        var control_insertAfter = $(document.createElement('li')).text('Insert After').click(function (e) {
             if (!$(this).hasClass('dcDisabled')) {
                 insertAfter();
                 focusInSelection();
             }
         }).appendTo(controlList);
-        var control_remove = $(document.createElement('li')).addClass('dcIconRemove').click(removeSelected).appendTo(controlList);
-        control_remove.append('<span>Remove</span>');
+        var control_remove = $(document.createElement('li')).text('Remove Selected').click(removeSelected).appendTo(controlList);
 
         Ω.setDefaultData = function (newDefault) {
             if (typeof newDefault === 'string')
@@ -146,17 +193,17 @@
         };
 
         function disableControls() {
-            //control_insertBefore.addClass('dcDisabled');
+            control_insertBefore.addClass('dcDisabled');
             control_insertAfter.addClass('dcDisabled');
         }
 
         function enableControls() {
-            //control_insertBefore.removeClass('dcDisabled');
+            control_insertBefore.removeClass('dcDisabled');
             control_insertAfter.removeClass('dcDisabled');
         }
 
         function isDisjoint() {
-            return control_insertAfter.hasClass('dcDisabled');
+            return control_insertBefore.hasClass('dcDisabled');
         }
 
         Ω.selectSingle = selectSingle;
@@ -338,6 +385,7 @@
         Ω.removeSelected = removeSelected;
         function removeSelected() {
             if (list.find('.dcSelected,.dcSubSelect').length > 0 && confirm('Are you sure you wish to delete the selected rows?')) {
+
                 var height = Ω.height();
 
                 list.find('.dcSelected,.dcSubSelect').remove();
@@ -351,8 +399,6 @@
                 if (Ω.height() != height)
                     Ω.resize();
             }
-
-            Ω.focus();
         }
 
         function toggleInput(obj) {
@@ -413,40 +459,29 @@
                     e.stopPropagation();
                     if (e.keyCode == 27) { // Escape
                         e.preventDefault();
-
                         Ω.focus();
-
                     } else if (e.keyCode == 13 && e.ctrlKey) { // Ctrl + Enter
                         e.preventDefault();
-
                         selectSingle($(this).closest('li'));
                         insertAfter();
                         focusInSelection();
-
                     } else if (e.keyCode == 46 && e.ctrlKey) { // Ctrl + Delete
                         e.preventDefault();
-
                         removeSelected();
-
                     } else if (e.keyCode == 38 && e.ctrlKey) { // Ctrl + Up
                         e.preventDefault();
-
                         if (!obj.closest('li').is('.dcSelected,.dcSubSelect'))
-                            selectDisjoint(obj.closest('li'));
+                            selectSingle(obj.closest('li'));
                         moveUp();
                         obj.focusEnd();
-
                     } else if (e.keyCode == 40 && e.ctrlKey) { // Ctrl + Down
                         e.preventDefault();
-
                         if (!obj.closest('li').is('.dcSelected,.dcSubSelect'))
-                            selectDisjoint(obj.closest('li'));
+                            selectSingle(obj.closest('li'));
                         moveDown();
                         obj.focusEnd();
-
                     } else if (e.keyCode == 38 && e.shiftKey) { // Shift + Up
                         e.preventDefault();
-
                         if (list.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
                             if (!list.find('.dcSelected,.dcSubSelect').is(':first-child')) {
                                 selectRange(list.find('.dcSelected,.dcSubSelect').first().prev());
@@ -454,10 +489,9 @@
                         } else {
                             selectRange(list.find('.dcSelected,.dcSubSelect').last().prev());
                         }
-
+                        obj.focusEnd();
                     } else if (e.keyCode == 40 && e.shiftKey) { // Shift + Down
                         e.preventDefault();
-
                         if (list.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
                             if (!list.find('.dcSelected,.dcSubSelect').is(':last-child')) {
                                 selectRange(list.find('.dcSelected,.dcSubSelect').last().next());
@@ -465,46 +499,45 @@
                         } else {
                             selectRange(list.find('.dcSelected,.dcSubSelect').first().next());
                         }
-
                     } else if (e.keyCode == 38) { // Up Arrow
                         e.preventDefault();
-
                         var row = obj.closest('li');
                         var num = row.find('input[type="text"],textarea').index(obj);
                         if (!row.is(':first-child'))
                             row.prev().find('input[type="text"],textarea').eq(num).focusEnd();
                         else
                             list.find('li:last-child').find('input[type="text"],textarea').eq(num).focusEnd();
-
                     } else if (e.keyCode == 40) { // Down Arrow
                         e.preventDefault();
-
                         var row = obj.closest('li');
                         var num = row.find('input[type="text"],textarea').index(obj);
                         if (!row.is(':last-child'))
                             row.next().find('input[type="text"],textarea').eq(num).focusEnd();
                         else
                             list.find('li:first-child').find('input[type="text"],textarea').eq(num).focusEnd();
-
-                    } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                    } else if (e.keyCode == 84 && e.altKey) { // Alt + T
                         e.preventDefault();
-
                         var parent = $(this).parent();
                         toggleInput(parent);
-                        parent.find('input[type="text"],textarea').first().focusEnd();
-
+                        var newControl = parent.find('input[type="text"],textarea').first();
+                        newControl.focusEnd();
                     } else if (e.keyCode == 83 && e.altKey) { // Alt + S
                         e.preventDefault();
-
-                        selectDisjoint($(this).closest('li'));
-
+                        selectSingle($(this).closest('li'));
+                        Ω.focus();
                     }
                 });
-                obj.focus(function (e) {
-                    Ω.addClass('dcFocus');
+                obj.focus(function (e, b) {
+                    if (!b) {
+                        alert('No event.');
+                        Ω.focus();
+                        var bg = Ω.css('background');
+                        obj.trigger('focus', true);
+                        Ω.css('background', bg);
+                    }
                 });
                 obj.blur(function (e) {
-                    Ω.removeClass('dcFocus');
+                    Ω.css('background', '');
                 });
                 obj.change(function (e) {
                     Ω.change(e);
@@ -573,11 +606,11 @@
                     }
                 } else if (e.keyCode == 46) { // Delete
                     removeSelected();
-                } else if (e.keyCode == 38 || e.keyCode == 75) { // Up Arrow / K
-                    e.preventDefault();
+                } else if (e.keyCode == 38) { // Up Arrow
                     if (e.ctrlKey) {
                         moveUp();
                     } else if (e.shiftKey) {
+                        e.preventDefault();
                         if (list.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
                             if (!list.find('.dcSelected,.dcSubSelect').is(':first-child')) {
                                 selectRange(list.find('.dcSelected,.dcSubSelect').first().prev());
@@ -593,11 +626,11 @@
                             selectSingle(list.find('.dcSelected').prev());
                         }
                     }
-                } else if (e.keyCode == 40 || e.keyCode == 74) { // Down Arrow / J
-                    e.preventDefault();
+                } else if (e.keyCode == 40) { // Down Arrow
                     if (e.ctrlKey) {
                         moveDown();
                     } else if (e.shiftKey) {
+                        e.preventDefault();
                         if (list.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
                             if (!list.find('.dcSelected,.dcSubSelect').is(':last-child')) {
                                 selectRange(list.find('.dcSelected,.dcSubSelect').last().next());
@@ -614,10 +647,10 @@
                         }
                     }
                 }
-            } else if (e.keyCode == 38 || e.keyCode == 75) { // Up Arrow / K
+            } else if (e.keyCode == 38) { // Up Arrow
                 e.preventDefault();
                 selectSingle(list.find('li:last-child'));
-            } else if (e.keyCode == 40 || e.keyCode == 74) { // Down Arrow / J
+            } else if (e.keyCode == 40) { // Down Arrow
                 e.preventDefault();
                 selectSingle(list.find('li:first-child'));
             }
@@ -659,7 +692,7 @@
     //#region DynamicTable
 
     $.fn.dynamicTable = function (args) {
-        var Ω = this;
+        var Ω = $(this);
         if (Ω.css('display') !== 'block')
             throw new Error('Invalid container for dynamicTable.');
 
@@ -674,18 +707,7 @@
             return Object.prototype.toString.call(obj) === '[object Array]';
         }
 
-        function isDataDoubleArray() {
-            if (!isArray(data)) return false;
-
-            var flag = true;
-            for (var i = 0; i < rows() ; i++) {
-                if (!isArray(data[i])) return false;
-            }
-
-            return true;
-        }
-
-        if (!isDataDoubleArray())
+        if (!isArrayOfArrays(data))
             throw new Error('Invalid data for dynamicTable.');
 
         function rows() {
@@ -699,7 +721,7 @@
             }
             return max;
         }
-
+        31
         function normalizeData() {
             for (var i = 0; i < rows() ; i++) {
                 if (!isArray(data[i])) {
@@ -753,25 +775,29 @@
         var controlWrapper = $(document.createElement('div')).addClass('dcControlWrapper').appendTo(wrapper);
         var controlPanel = $(document.createElement('div')).addClass('dcControlPanel').appendTo(controlWrapper);
         var controlList = $(document.createElement('ul')).appendTo(controlPanel);
-
-        var control_select = $(document.createElement('li')).addClass('dcIconSelect').text('Select All').click(selectAll).appendTo(controlList);
-        var control_deselect = $(document.createElement('li')).addClass('dcIconDeselect').text('Deselect All').click(clearSelection).appendTo(controlList);
-        var control_moveUp = $(document.createElement('li')).addClass('dcIconMoveUp').text('Move Up').click(function (e) {
+        var control_select = $(document.createElement('li')).text('Select All').click(selectAll).appendTo(controlList);
+        var control_deselect = $(document.createElement('li')).text('Deselect All').click(clearSelection).appendTo(controlList);
+        var control_moveUp = $(document.createElement('li')).text('Move Up').click(function (e) {
             if (!$(this).hasClass('dcDisabled'))
                 moveUp();
         }).appendTo(controlList);
-        var control_moveDown = $(document.createElement('li')).addClass('dcIconMoveDown').text('Move Down').click(function (e) {
+        var control_moveDown = $(document.createElement('li')).text('Move Down').click(function (e) {
             if (!$(this).hasClass('dcDisabled'))
                 moveDown();
         }).appendTo(controlList);
-        var control_insertAfter = $(document.createElement('li')).addClass('dcIconInsert').text('Insert After').click(function (e) {
+        var control_insertBefore = $(document.createElement('li')).text('Insert Before').click(function (e) {
+            if (!$(this).hasClass('dcDisabled')) {
+                insertBefore();
+                focusInSelection();
+            }
+        }).appendTo(controlList);
+        var control_insertAfter = $(document.createElement('li')).text('Insert After').click(function (e) {
             if (!$(this).hasClass('dcDisabled')) {
                 insertAfter();
                 focusInSelection();
             }
         }).appendTo(controlList);
-        var control_remove = $(document.createElement('li')).addClass('dcIconRemove').click(removeSelected).appendTo(controlList);
-        control_remove.append('<span>Remove</span>');
+        var control_remove = $(document.createElement('li')).text('Remove Selected').click(removeSelected).appendTo(controlList);
 
         Ω.setDefaultData = function (newDefault) {
             if (typeof newDefault === 'string')
@@ -783,17 +809,17 @@
         };
 
         function disableControls() {
-            //control_insertBefore.addClass('dcDisabled');
+            control_insertBefore.addClass('dcDisabled');
             control_insertAfter.addClass('dcDisabled');
         }
 
         function enableControls() {
-            //control_insertBefore.removeClass('dcDisabled');
+            control_insertBefore.removeClass('dcDisabled');
             control_insertAfter.removeClass('dcDisabled');
         }
 
         function isDisjoint() {
-            return control_insertAfter.hasClass('dcDisabled');
+            return control_insertBefore.hasClass('dcDisabled');
         }
 
         Ω.selectSingle = selectSingle;
@@ -899,8 +925,6 @@
 
         Ω.insertAfter = insertAfter;
         function insertAfter() {
-            var height = Ω.height();
-
             var tr = $(document.createElement('tr'));
 
             for (j = 0; j < cols() ; j++) {
@@ -931,15 +955,10 @@
 
             selectSingle(tr);
             Ω.change();
-
-            if (Ω.height() != height)
-                Ω.resize();
         }
 
         Ω.insertBefore = insertBefore;
         function insertBefore() {
-            var height = Ω.height();
-
             var tr = $(document.createElement('tr'));
 
             for (j = 0; j < cols() ; j++) {
@@ -970,36 +989,26 @@
 
             selectSingle(tr);
             Ω.change();
-
-            if (Ω.height() != height)
-                Ω.resize();
         }
 
         Ω.removeSelected = removeSelected;
         function removeSelected() {
-            if (table.find('.dcSelected,.dcSubSelect').length > 0 && confirm('Are you sure you wish to delete the selected rows?')) {
-                var height = Ω.height();
-
-                table.find('.dcSelected,.dcSubSelect').remove();
-                if (table.find('tr').length == 0)
-                    insertAfter();
+            if (table.find('.dcSelected,.dcSubSelect').length > 0) {
+                if (confirm('Are you sure you wish to delete the selected rows?')) {
+                    table.find('.dcSelected,.dcSubSelect').remove();
+                    if (table.find('tr').length == 0)
+                        insertAfter();
+                }
 
                 enableControls();
                 Ω.change();
-
-                if (Ω.height() != height)
-                    Ω.resize();
             }
-
-            Ω.focus();
         }
 
         function toggleInput(obj) {
             obj = $(obj);
             if (obj.prop('tagName') == 'DIV')
                 obj = obj.closest('td');
-
-            var height = Ω.height();
 
             var control = obj.find('input[type="text"],textarea');
 
@@ -1021,9 +1030,6 @@
                 control.remove();
                 registerEvents('control', newControl);
             }
-
-            if (Ω.height() != height)
-                Ω.resize();
         }
 
         Ω.focusInSelection = focusInSelection;
@@ -1057,40 +1063,29 @@
                     e.stopPropagation();
                     if (e.keyCode == 27) { // Escape
                         e.preventDefault();
-
                         Ω.focus();
-
                     } else if (e.keyCode == 13 && e.ctrlKey) { // Ctrl + Enter
                         e.preventDefault();
-
                         selectSingle($(this).closest('tr'));
                         insertAfter();
                         focusInSelection();
-
                     } else if (e.keyCode == 46 && e.ctrlKey) { // Ctrl + Delete
                         e.preventDefault();
-
                         removeSelected();
-
                     } else if (e.keyCode == 38 && e.ctrlKey) { // Ctrl + Up
                         e.preventDefault();
-
                         if (!obj.closest('tr').is('.dcSelected,.dcSubSelect'))
-                            selectDisjoint(obj.closest('tr'));
+                            selectSingle(obj.closest('tr'));
                         moveUp();
                         obj.focusEnd();
-
                     } else if (e.keyCode == 40 && e.ctrlKey) { // Ctrl + Down
                         e.preventDefault();
-
                         if (!obj.closest('tr').is('.dcSelected,.dcSubSelect'))
-                            selectDisjoint(obj.closest('tr'));
+                            selectSingle(obj.closest('tr'));
                         moveDown();
                         obj.focusEnd();
-
                     } else if (e.keyCode == 38 && e.shiftKey) { // Shift + Up
                         e.preventDefault();
-
                         if (table.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
                             if (!table.find('.dcSelected,.dcSubSelect').is(':first-child')) {
                                 selectRange(table.find('.dcSelected,.dcSubSelect').first().prev());
@@ -1098,10 +1093,8 @@
                         } else {
                             selectRange(table.find('.dcSelected,.dcSubSelect').last().prev());
                         }
-
                     } else if (e.keyCode == 40 && e.shiftKey) { // Shift + Down
                         e.preventDefault();
-
                         if (table.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
                             if (!table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
                                 selectRange(table.find('.dcSelected,.dcSubSelect').last().next());
@@ -1109,58 +1102,39 @@
                         } else {
                             selectRange(table.find('.dcSelected,.dcSubSelect').first().next());
                         }
-
                     } else if (e.keyCode == 38) { // Up Arrow
                         e.preventDefault();
-
                         var row = obj.closest('tr');
                         var num = row.find('input[type="text"],textarea').index(obj);
                         if (!row.is(':first-child'))
                             row.prev().find('input[type="text"],textarea').eq(num).focusEnd();
                         else
                             table.find('tr:last-child').find('input[type="text"],textarea').eq(num).focusEnd();
-
                     } else if (e.keyCode == 40) { // Down Arrow
                         e.preventDefault();
-
                         var row = obj.closest('tr');
                         var num = row.find('input[type="text"],textarea').index(obj);
                         if (!row.is(':last-child'))
                             row.next().find('input[type="text"],textarea').eq(num).focusEnd();
                         else
                             table.find('tr:first-child').find('input[type="text"],textarea').eq(num).focusEnd();
-
-                    } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                    } else if (e.keyCode == 84 && e.altKey) { // Alt + T
                         e.preventDefault();
-
                         var parent = $(this).parent();
                         toggleInput(parent);
-                        parent.find('input[type="text"],textarea').first().focusEnd();
-
+                        var newControl = parent.find('input[type="text"],textarea').first();
+                        newControl.focusEnd();
                     } else if (e.keyCode == 83 && e.altKey) { // Alt + S
                         e.preventDefault();
-
-                        selectDisjoint($(this).closest('tr'));
-
-                    } else if ((e.keyCode == 188) && e.ctrlKey) { // Alt + <
-                        e.preventDefault();
-
-                        if (!obj.closest('td').is(':first-child'))
-                            obj.closest('td').prev().find('input[type="text"],textarea').first().focusEnd();
-
-                    } else if ((e.keyCode == 190) && e.ctrlKey) { // Alt + >
-                        e.preventDefault();
-
-                        if (!obj.closest('td').is(':last-child'))
-                            obj.closest('td').next().find('input[type="text"],textarea').first().focusEnd();
-
+                        selectSingle($(this).closest('tr'));
+                        Ω.focus();
                     }
                 });
                 obj.focus(function (e) {
-                    Ω.addClass('dcFocus');
+                    // TODO: Set bg color for Ω here.
                 });
                 obj.blur(function (e) {
-                    Ω.removeClass('dcFocus');
+                    Ω.css('background', '');
                 });
                 obj.change(function (e) {
                     Ω.change(e);
@@ -1216,25 +1190,25 @@
                 e.preventDefault();
                 if (!isDisjoint())
                     insertAfter();
-            } else if (e.keyCode == 69) { // E
-                e.preventDefault();
-                focusInSelection();
-            } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
-                e.preventDefault();
-                table.find('.dcSelected > td,.dcSubSelect > td').each(function () {
-                    toggleInput(this);
-                });
-            } else if (e.keyCode == 46) { // Delete
-                if (table.find('.dcSelected,.dcSubSelect').length > 0) {
+            } else if (table.find('.dcSelected,.dcSubSelect').length > 0) {
+                if (e.keyCode == 69) { // E
                     e.preventDefault();
+                    focusInSelection();
+                } else if (e.keyCode == 84) { // T
+                    if (e.altKey) {
+                        e.preventDefault();
+                        table.find('.dcSelected > td,.dcSubSelect > td').each(function () {
+                            toggleInput(this);
+                            // TODO: Decide if this is necessary.
+                        });
+                    }
+                } else if (e.keyCode == 46) { // Delete
                     removeSelected();
-                }
-            } else if (e.keyCode == 38 || e.keyCode == 75) { // Up Arrow / K
-                if (table.find('.dcSelected,.dcSubSelect').length > 0) {
-                    e.preventDefault();
-                    if (e.ctrlKey) { // + Ctrl
+                } else if (e.keyCode == 38) { // Up Arrow
+                    if (e.ctrlKey) {
                         moveUp();
-                    } else if (e.shiftKey) { // + Shift
+                    } else if (e.shiftKey) {
+                        e.preventDefault();
                         if (table.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
                             if (!table.find('.dcSelected,.dcSubSelect').is(':first-child')) {
                                 selectRange(table.find('.dcSelected,.dcSubSelect').first().prev());
@@ -1250,16 +1224,11 @@
                             selectSingle(table.find('.dcSelected').prev());
                         }
                     }
-                } else {
-                    e.preventDefault();
-                    selectSingle(table.find('tr:last-child'));
-                }
-            } else if (e.keyCode == 40 || e.keyCode == 74) { // Down Arrow / J
-                if (table.find('.dcSelected,.dcSubSelect').length > 0) {
-                    e.preventDefault();
-                    if (e.ctrlKey) { // + Ctrl
+                } else if (e.keyCode == 40) { // Down Arrow
+                    if (e.ctrlKey) {
                         moveDown();
-                    } else if (e.shiftKey) { // + Shift
+                    } else if (e.shiftKey) {
+                        e.preventDefault();
                         if (table.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
                             if (!table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
                                 selectRange(table.find('.dcSelected,.dcSubSelect').last().next());
@@ -1275,10 +1244,13 @@
                             selectSingle(table.find('.dcSelected').next());
                         }
                     }
-                } else {
-                    e.preventDefault();
-                    selectSingle(table.find('tr:first-child'));
                 }
+            } else if (e.keyCode == 38) { // Up Arrow
+                e.preventDefault();
+                selectSingle(table.find('tr:last-child'));
+            } else if (e.keyCode == 40) { // Down Arrow
+                e.preventDefault();
+                selectSingle(table.find('tr:first-child'));
             }
         });
 
