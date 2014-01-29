@@ -1,7 +1,4 @@
-﻿/// <reference path="Scripts/jquery-2.0.3.js" />
-/// <reference path="Scripts/jquery-ui-1.10.3.js" />
-
-(function ($) {
+﻿(function ($) {
 
     if (typeof Array.prototype.repeat != 'function') {
         Array.prototype.repeat = function (val, len){
@@ -38,7 +35,7 @@
         }
 
         for (var i = 0; i < rows ; i++) {
-            if (!isArray(obj[i])) {
+            if (!$.isArray(obj[i])) {
                 obj[i] = [].repeat(filler, cols);
             } else if (obj[i].length != cols) {
                 for (var j = obj[i].length; j < cols ; j++) {

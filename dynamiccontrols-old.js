@@ -1,7 +1,4 @@
-﻿/// <reference path="Scripts/jquery-2.0.3.js" />
-/// <reference path="Scripts/jquery-ui-1.10.3.js" />
-
-/**
+﻿/**
  *  DynamicControls v0.8.0
  *  jQuery Plugin for creating and utilizing advanced data manipulation controls.
  *  https://github.com/Roundaround/DynamicControls

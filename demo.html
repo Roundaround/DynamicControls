@@ -36,40 +36,28 @@
             margin-right: 10px;
         }
     </style>
-    <!--script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></!--script>
-    <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script-->
-    <script src="Scripts/jquery-2.0.3.min.js"></script>
-    <script src="Scripts/jquery-ui-1.10.3.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
     <script src="dynamiccontrols.js"></script>
+    <script src="dynamiccontrols-new.js"></script>
     <script type="text/javascript">
         $(function () {
-            /*var myTable = $('#table').dynamicTable({
-                data: [
-                    ['This is my data.', 'Row 1, Column 2', 'And a third column for good measure.'],
-                    ['Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!']
-                ],
-                defaultData: ''
-            });
+            //$('#table').dynamicTable([
+            //        ['This is my data.', 'Row 1, Column 2', 'And a third column for good measure.'],
+            //        ['Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!']
+            //]);
 
-            $('#tableButton').click(function () {
-                alert(JSON.stringify(myTable.getData()));
-            });
+            //alert(JSON.stringify($('#table').dynamicTable('getData')));
 
-            $('#defaultData').change(function () {
-                myTable.setDefaultData($(this).val());
-            });*/
-
-            $('#table').dynamicTable([
+            $('#table').dynamicTable(data = [
                     ['This is my data.', 'Row 1, Column 2', 'And a third column for good measure.'],
                     ['Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!']
             ]);
-
-            alert(JSON.stringify($('#table').dynamicTable('getData')));
         });
     </script>
 </head>
 <body>
-    <div id="table">Weeeeeeeeeeeeeeeeeeeeeeeee</div>
+    <div id="table">Irrelevant Original Text</div>
     <div id="inputWrapper">
         <input type="button" value="Get Data" id="tableButton" />
         <input type="text" value="Set Default Data" id="defaultData" />
