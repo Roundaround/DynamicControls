@@ -125,14 +125,17 @@
         };
     })($.fn.clone)
 
-    var DynamicTable = function (container, options) {
+    var DynamicControl = function () { };
+    var $dc = DynamicControl;
+
+    $dc.table = function (container, options) {
         this.container = $(container);
         this.original = $(container).contents().clone();
         this.options = options;
         this.data = options.initial;
     };
 
-    DynamicTable.prototype = {
+    $dc.table.prototype = {
         _init: function () {
             var Ω = $(this.container),
                 δ = this;
@@ -436,10 +439,10 @@
         if (typeof arg === 'string') {
             // We are calling a command here.
             var control = Ω.data('dynamictable'),
-                options = $.extend({}, defaults, control);
+                options = $.extend({}, $dc.defaults, control);
 
             if (!control)
-                Ω.data('dynamictable', (control = new $.DynamicControl(Ω, 'table', options)))
+                Ω.data('dynamictable', (control = new $dc.table(Ω, 'table', options)))
 
             if (typeof control[arg] !== 'function')
                 throw 'Unknown method: ' + arg;
@@ -452,8 +455,8 @@
 
         } else if (isArrayOfArrays(arg)) {
             // We are initializing with initial data.
-            var options = $.extend({}, defaults, { initial: arg }),
-                control = new DynamicTable(Ω, options);
+            var options = $.extend({}, $dc.defaults, { initial: arg }),
+                control = new $dc.table(Ω, options);
 
             control._init();
             Ω.data('dynamictable', control);
@@ -461,8 +464,8 @@
 
         } else if (typeof arg === 'object') {
             // We are initializing with options.
-            var options = $.extend({}, defaults, arg),
-                control = new DynamicTable(Ω, options);
+            var options = $.extend({}, $dc.defaults, arg),
+                control = new $dc.table(Ω, options);
 
             control._init();
             Ω.data('dynamictable', control);
@@ -517,7 +520,7 @@
     //    });
     //};
 
-    var defaults = {
+    $dc.defaults = {
         initial: null,
         placeholder: '',
         draggable: true,
