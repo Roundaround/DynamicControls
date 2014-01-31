@@ -27,6 +27,7 @@
  *    ~ Completely rewrote to adhere to jQuery plugin standards.
  *    ~ Created internal use namespace DynamicControls/$dc.
  *    ~ Maintained separate internal objects for different control types.
+ *    ~ Update internal data on every change.
 **/
 
 (function ($) {
@@ -202,12 +203,22 @@
                         input.val(δ.data[i][j]);
                         input.attr('placeholder', δ.data[i][j]);
                         //registerEvents('control', input);
+
+                        input.change(function (e) {
+                            δ._updateData();
+                        });
+
                     } else {
                         var textarea = $(document.createElement('textarea')).appendTo(tdWrapper);
                         textarea.val(δ.data[i][j]);
                         textarea.attr('placeholder', δ.data[i][j]);
                         textarea.attr('rows', 5);
                         //registerEvents('control', textarea);
+
+                        textarea.change(function (e) {
+                            δ._updateData();
+                        });
+
                     }
                 }
 
@@ -250,6 +261,24 @@
             return δ;
         },
 
+        _updateData: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var table = Ω.find('table');
+            var newData = [];
+            for (var i = 0; i < table.find('tr').length; i++) {
+                var row = [];
+                for (var j = 0; j < table.find('tr:first').find('td').length; j++) {
+                    row.push(table.find('tr').eq(i).find('td').eq(j).find('input[type="text"],textarea').val());
+                }
+                newData.push(row);
+            }
+            δ.data = newData;
+
+            return δ;
+        },
+
         _enableControls: function () {
 
         },
@@ -258,9 +287,13 @@
 
         },
 
-        _focusInSelection: function () {
+        _focusInSelection: function (row, item) {
             var Ω = $(this.container),
                 δ = this;
+
+            row = row || 0;
+            item = item || 0;
+            Ω.find('table').find('.dcSelected,.dcSubSelect').eq(row).find('input[type="text"],textarea').eq(item).focusEnd();
 
             return δ;
         },
@@ -382,13 +415,16 @@
             var Ω = $(this.container),
                 δ = this;
 
-            if (Ω.find('table').find('.dcSelected,.dcSubSelect').length > 0 &&
-                !Ω.find('table').find('.dcSelected,.dcSubSelect').is(':first-child')) {
-                Ω.find('table').find('.dcSelected,.dcSubSelect').each(function () {
-                    //$(this).insertBefore($(this).prev());
+            var table = Ω.find('table');
+            if (table.find('.dcSelected,.dcSubSelect').length > 0 &&
+                !table.find('.dcSelected,.dcSubSelect').is(':first-child')) {
+                table.find('.dcSelected,.dcSubSelect').each(function () {
+                    $(this).insertBefore($(this).prev());
                 });
-                //Ω.change();
+                Ω.change();
             }
+
+            δ._updateData();
 
             return δ;
         },
@@ -397,6 +433,17 @@
             var Ω = $(this.container),
                 δ = this;
 
+            var table = Ω.find('table');
+            if (table.find('.dcSelected,.dcSubSelect').length > 0 &&
+                !table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
+                $(table.find('.dcSelected,.dcSubSelect').get().reverse()).each(function () {
+                    $(this).insertAfter($(this).next());
+                });
+                Ω.change();
+            }
+
+            δ._updateData();
+
             return δ;
         },
 
@@ -404,12 +451,69 @@
             var Ω = $(this.container),
                 δ = this;
 
+            var height = Ω.height();
+
+            var tr = $(document.createElement('tr'));
+
+            for (j = 0; j < δ.data[0].length ; j++) {
+                var td = $(document.createElement('td')).appendTo(tr);
+                var tdWrapper = $(document.createElement('div')).appendTo(td);
+                var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(tdWrapper);
+                //registerEvents('toggle', toggle);
+
+                var input = $(document.createElement('input')).attr('type', 'text').appendTo(tdWrapper);
+                input.val(δ.options.placeholder);
+                input.attr('placeholder', δ.options.placeholder);
+                //registerEvents('control', input);
+            }
+
+            var table = Ω.find('table');
+            if (table.find('tr').length == 0) {
+                table.append(tr);
+            } else if (table.find('.dcSelected').length == 1) {
+                if (table.find('.dcSubSelect').length > 0)
+                    table.find('.dcSelected,.dcSubSelect').last().after(tr);
+                else
+                    table.find('.dcSelected').after(tr);
+            } else {
+                table.find('tr:last-child').after(tr);
+            }
+
+            //registerEvents('row', tr);
+
+            δ._selectSingle(tr);
+            Ω.change();
+
+            if (Ω.height() != height)
+                Ω.resize();
+
+            δ._updateData();
+
             return δ;
         },
 
-        'remove': function (confirm) {
+        'remove': function () {
             var Ω = $(this.container),
                 δ = this;
+
+            var table = Ω.find('table');
+            if (table.find('.dcSelected,.dcSubSelect').length > 0 && confirm('Are you sure you wish to delete the selected rows?')) {
+                var height = Ω.height();
+
+                table.find('.dcSelected,.dcSubSelect').remove();
+                if (table.find('tr').length == 0)
+                    δ.insert();
+
+                δ._enableControls();
+                Ω.change();
+
+                if (Ω.height() != height)
+                    Ω.resize();
+            }
+
+            Ω.focus();
+
+            δ._updateData();
 
             return δ;
         },
@@ -428,7 +532,7 @@
                 δ = this;
 
             Ω.contents().remove().append(δ.original);
-            Ω.removeData('dynamiccontrol');
+            Ω.removeData('dynamictable');
             return Ω[0];
         }
     };

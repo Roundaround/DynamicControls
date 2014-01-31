@@ -42,21 +42,13 @@
     <script type="text/javascript">
         $(function () {
             $('#table').dynamicTable([
-                    ['This is my data.', 'Row 1, Column 2', 'And a third column for good measure.'],
-                    ['Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!']
+                ['This is my data.', 'Row 1, Column 2', 'And a third column for good measure.'],
+                ['Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!']
             ]);
 
             $('#tableButton').click(function () {
                 alert(JSON.stringify($('#table').dynamicTable('getData')));
-            })
-
-            $('#selectButton').click(function () {
-                $('#table').dynamicTable('selectAll');
-            })
-
-            $('#deselectButton').click(function () {
-                $('#table').dynamicTable('deselectAll');
-            })
+            });
         });
     </script>
 </head>
@@ -64,9 +56,6 @@
     <div id="table">Irrelevant Original Text</div>
     <div id="inputWrapper">
         <input type="button" value="Get Data" id="tableButton" />
-        <input type="button" value="Select All" id="selectButton" />
-        <input type="button" value="Deselect All" id="deselectButton" />
-        <input type="button" value="Set Default Data" id="defaultData" />
     </div>
 </body>
 </html>
