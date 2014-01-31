@@ -25,6 +25,8 @@
  *    ~ Checked if browser supports rgba before setting alpha value.
  *  1.0.0:
  *    ~ Completely rewrote to adhere to jQuery plugin standards.
+ *    ~ Created internal use namespace DynamicControls/$dc.
+ *    ~ Maintained separate internal objects for different control types.
 **/
 
 (function ($) {
@@ -125,7 +127,7 @@
         };
     })($.fn.clone)
 
-    var DynamicControl = function () { };
+    var DynamicControl = {};
     var $dc = DynamicControl;
 
     $dc.table = function (container, options) {
