@@ -1,24 +1,29 @@
-﻿[data-dcid] {
+﻿.dcContainer {
     padding: 10px;
 }
 
-[data-dcid]:focus {
+.dcContainer:focus {
     background-color: rgb(235, 235, 235);
     outline: none;
 }
 
-[data-dcid] * {
+.dcFocus {
+    background-color: rgb(235, 235, 235);
+    outline: none;
+}
+
+.dcContainer * {
     -moz-user-select: none;
     -ms-user-select: none;
     -webkit-user-select: none;
     user-select: none;
 }
 
-[data-dcid] > div {
+.dcContainer > div {
     overflow: hidden;
 }
 
-[data-dcid] input[type="text"] {
+.dcContainer input[type="text"] {
     width: 100%;
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box;
@@ -29,7 +34,7 @@
     user-select: text;
 }
 
-[data-dcid] textarea {
+.dcContainer textarea {
     resize: none;
     width: 100%;
     -moz-box-sizing: border-box;

@@ -132,10 +132,24 @@
     var $dc = DynamicControl;
 
     $dc.table = function (container, options) {
-        this.container = $(container);
-        this.original = $(container).contents().clone();
-        this.options = options;
-        this.data = options.initial;
+        var δ = this,
+            Ω = $(container);
+
+        δ.container = Ω;
+        δ.original = Ω.contents().clone();
+        δ.options = options;
+        δ.data = options.initial;
+
+        Ω.addClass('dcContainer');
+        Ω.attr('tabindex', 1);
+
+        Ω.click(function (e) {
+            δ.deselectAll();
+        });
+
+        Ω.find('.dcControlWrapper').click(function (e) {
+            e.stopPropagation();
+        });
     };
 
     $dc.table.prototype = {
@@ -147,6 +161,8 @@
 
             if (δ.data === null)
                 δ.data = [].repeat([].repeat(δ.options.placeholder, δ.options.columns), δ.options.rows);
+
+            δ.data = normalizeDoubleArray(δ.data, δ.options.placeholder);
 
             δ._generateTable();
 
@@ -180,11 +196,142 @@
             //return δ;
         },
 
+        _isDisjoint: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            return Ω.find('tr.dcSubSelect').length > 0;
+        },
+
+        _registerInputEvents: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            var table = Ω.find('table');
+            obj = $(obj);
+
+            obj.click(function (e) {
+                e.stopPropagation();
+            });
+            obj.keydown(function (e) {
+                e.stopPropagation();
+                if (e.keyCode == 27) { // Escape
+                    e.preventDefault();
+
+                    Ω.focus();
+
+                } else if (e.keyCode == 13 && e.ctrlKey) { // Ctrl + Enter
+                    e.preventDefault();
+
+                    δ._selectSingle($(this).closest('tr'));
+                    δ.insert();
+                    δ._focusInSelection();
+
+                } else if (e.keyCode == 46 && e.ctrlKey) { // Ctrl + Delete
+                    e.preventDefault();
+
+                    δ.remove();
+
+                } else if (e.keyCode == 38 && e.ctrlKey) { // Ctrl + Up
+                    e.preventDefault();
+
+                    if (!obj.closest('tr').is('.dcSelected,.dcSubSelect'))
+                        δ._selectDisjoint(obj.closest('tr'));
+                    δ.moveUp();
+                    obj.focusEnd();
+
+                } else if (e.keyCode == 40 && e.ctrlKey) { // Ctrl + Down
+                    e.preventDefault();
+
+                    if (!obj.closest('tr').is('.dcSelected,.dcSubSelect'))
+                        δ._selectDisjoint(obj.closest('tr'));
+                    δ.moveDown();
+                    obj.focusEnd();
+
+                } else if (e.keyCode == 38 && e.shiftKey) { // Shift + Up
+                    e.preventDefault();
+
+                    if (table.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
+                        if (!table.find('.dcSelected,.dcSubSelect').is(':first-child')) {
+                            δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().prev());
+                        }
+                    } else {
+                        δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().prev());
+                    }
+
+                } else if (e.keyCode == 40 && e.shiftKey) { // Shift + Down
+                    e.preventDefault();
+
+                    if (table.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
+                        if (!table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
+                            δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().next());
+                        }
+                    } else {
+                        δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().next());
+                    }
+
+                } else if (e.keyCode == 38) { // Up Arrow
+                    e.preventDefault();
+
+                    var row = obj.closest('tr');
+                    var num = row.find('input[type="text"],textarea').index(obj);
+                    if (!row.is(':first-child'))
+                        row.prev().find('input[type="text"],textarea').eq(num).focusEnd();
+                    else
+                        table.find('tr:last-child').find('input[type="text"],textarea').eq(num).focusEnd();
+
+                } else if (e.keyCode == 40) { // Down Arrow
+                    e.preventDefault();
+
+                    var row = obj.closest('tr');
+                    var num = row.find('input[type="text"],textarea').index(obj);
+                    if (!row.is(':last-child'))
+                        row.next().find('input[type="text"],textarea').eq(num).focusEnd();
+                    else
+                        table.find('tr:first-child').find('input[type="text"],textarea').eq(num).focusEnd();
+
+                } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                    e.preventDefault();
+
+                    var parent = $(this).parent();
+                    //toggleInput(parent);
+                    parent.find('input[type="text"],textarea').first().focusEnd();
+
+                } else if (e.keyCode == 83 && e.altKey) { // Alt + S
+                    e.preventDefault();
+
+                    δ._selectDisjoint($(this).closest('tr'));
+
+                } else if ((e.keyCode == 188) && e.ctrlKey) { // Ctrl + <
+                    e.preventDefault();
+
+                    if (!obj.closest('td').is(':first-child'))
+                        obj.closest('td').prev().find('input[type="text"],textarea').first().focusEnd();
+
+                } else if ((e.keyCode == 190) && e.ctrlKey) { // Ctrl + >
+                    e.preventDefault();
+
+                    if (!obj.closest('td').is(':last-child'))
+                        obj.closest('td').next().find('input[type="text"],textarea').first().focusEnd();
+
+                }
+            });
+            obj.focus(function (e) {
+                Ω.addClass('dcFocus');
+            });
+            obj.blur(function (e) {
+                Ω.removeClass('dcFocus');
+            });
+            obj.change(function (e) {
+                Ω.change(e);
+            });
+        },
+
         _generateTable: function () {
             var Ω = $(this.container),
                 δ = this;
 
-            δ.data = normalizeDoubleArray(δ.data, δ.options.placeholder);
+            alert('Test');
 
             var wrapper = $(document.createElement('div')).css({ height: '100%', width: '100%', margin: 0, padding: 0 }).appendTo(Ω);
             var table = $(document.createElement('table')).addClass('dcTable').appendTo(wrapper);
@@ -202,7 +349,7 @@
                         var input = $(document.createElement('input')).attr('type', 'text').appendTo(tdWrapper);
                         input.val(δ.data[i][j]);
                         input.attr('placeholder', δ.data[i][j]);
-                        //registerEvents('control', input);
+                        δ._registerInputEvents(input);
 
                         input.change(function (e) {
                             δ._updateData();
@@ -213,7 +360,7 @@
                         textarea.val(δ.data[i][j]);
                         textarea.attr('placeholder', δ.data[i][j]);
                         textarea.attr('rows', 5);
-                        //registerEvents('control', textarea);
+                        δ._registerInputEvents(textarea);
 
                         textarea.change(function (e) {
                             δ._updateData();
@@ -223,6 +370,116 @@
                 }
 
                 //registerEvents('row', tr);
+
+                Ω.unbind('keydown');
+                Ω.keydown(function (e) {
+                    if (e.keyCode == 27) { // Escape
+                        e.preventDefault();
+                        δ.deselectAll();
+                    } else if (e.keyCode == 78) { // N
+                        e.preventDefault();
+                        if (!δ._isDisjoint())
+                            δ.insert();
+                    } else if (e.keyCode == 69) { // E
+                        e.preventDefault();
+                        δ._focusInSelection();
+                    } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                        e.preventDefault();
+                        table.find('.dcSelected > td,.dcSubSelect > td').each(function () {
+                            //toggleInput(this);
+                        });
+                    } else if (e.keyCode == 46) { // Delete
+                        if (table.find('.dcSelected,.dcSubSelect').length > 0) {
+                            e.preventDefault();
+                            δ.remove();
+                        }
+                    } else if (e.keyCode == 38 || e.keyCode == 74) { // Up Arrow / J
+                        if (table.find('.dcSelected,.dcSubSelect').length > 0) {
+                            e.preventDefault();
+                            if (e.ctrlKey) { // + Ctrl
+                                δ.moveUp();
+                            } else if (e.shiftKey) { // + Shift
+                                if (table.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
+                                    if (!table.find('.dcSelected,.dcSubSelect').is(':first-child')) {
+                                        δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().prev());
+                                    }
+                                } else {
+                                    δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().prev());
+                                }
+                            } else {
+                                δ._deselectSub();
+                                if (table.find('.dcSelected').is(':first-child')) {
+                                    δ._selectSingle(table.find('tr:last-child'));
+                                } else {
+                                    δ._selectSingle(table.find('.dcSelected').prev());
+                                }
+                            }
+                        } else {
+                            e.preventDefault();
+                            δ._selectSingle(table.find('tr:last-child'));
+                        }
+                    } else if (e.keyCode == 40 || e.keyCode == 75) { // Down Arrow / K
+                        if (table.find('.dcSelected,.dcSubSelect').length > 0) {
+                            e.preventDefault();
+                            if (e.ctrlKey) { // + Ctrl
+                                δ.moveDown();
+                            } else if (e.shiftKey) { // + Shift
+                                if (table.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
+                                    if (!table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
+                                        δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().next());
+                                    }
+                                } else {
+                                    δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().next());
+                                }
+                            } else {
+                                δ._deselectSub();
+                                if (table.find('.dcSelected').is(':last-child')) {
+                                    δ._selectSingle(table.find('tr:first-child'));
+                                } else {
+                                    δ._selectSingle(table.find('.dcSelected').next());
+                                }
+                            }
+                        } else {
+                            e.preventDefault();
+                            δ._selectSingle(table.find('tr:first-child'));
+                        }
+                    }
+                    δ._updateData();
+                });
+
+                //if ($.ui && $.fn.sortable) {
+                //    table.find('tbody').sortable({
+                //        axis: 'y',
+                //        helper: function (e, item) {
+                //            item.children().each(function () {
+                //                $(this).width($(this).width());
+                //            });
+
+                //            if (!item.is('.dcSelected,.dcSubSelect')) {
+                //                δ._selectSingle(item);
+                //            }
+
+                //            var elems = table.find('.dcSelected,.dcSubSelect').clone();
+                //            item.data('multidrag', elems).siblings('.dcSelected,.dcSubSelect').remove();
+                //            var helper = $('<tr />');
+                //            return helper.append(elems);
+                //        },
+                //        stop: function (e, ui) {
+                //            var elems = ui.item.data('multidrag');
+                //            elems.each(function () {
+                //                //registerEvents('row', this);
+                //                //registerEvents('control', $(this).find('input[type="text"],textarea'));
+                //                //registerEvents('toggle', $(this).find('.dcToggle'));
+                //            });
+                //            ui.item.after(elems).remove();
+                //            δ._selectSingle(elems.first());
+                //            δ._selectRange(elems.last());
+                //            table.find('tr').hide().show(0);  // Redraw to fix borders
+                //            Ω.change();
+                //            δ._updateData();
+                //        }
+                //    });
+                //}s
             }
 
             var controlWrapper = $(document.createElement('div')).addClass('dcControlWrapper').appendTo(wrapper);
@@ -323,7 +580,7 @@
             if (obj.hasClass('dcSelected')) {
                 δ.deselectAll();
             } else if (Ω.find('table').find('.dcSelected').length != 1) {
-                δ.selectSingle(obj);
+                δ._selectSingle(obj);
             } else {
                 δ.deselectAll();
 
@@ -356,7 +613,7 @@
                     obj.addClass('dcSubSelect');
                 }
             } else {
-                δ.selectSingle(obj);
+                δ._selectSingle(obj);
             }
 
             return δ;
@@ -531,6 +788,7 @@
             var Ω = $(this.container),
                 δ = this;
 
+            Ω.removeClass('dcContainer').removeAttr('tabindex');
             Ω.contents().remove().append(δ.original);
             Ω.removeData('dynamictable');
             return Ω[0];
@@ -566,7 +824,6 @@
 
             control._init();
             Ω.data('dynamictable', control);
-            return Ω;
 
         } else if (typeof arg === 'object') {
             // We are initializing with options.
@@ -575,9 +832,9 @@
 
             control._init();
             Ω.data('dynamictable', control);
-            return Ω;
-
         }
+
+        return Ω;
     };
 
     //$.fn.dynamicList = function () {

@@ -49,6 +49,10 @@
             $('#tableButton').click(function () {
                 alert(JSON.stringify($('#table').dynamicTable('getData')));
             });
+
+            $('#selectButton').click(function () {
+                $('#table').dynamicTable('selectAll');
+            });
         });
     </script>
 </head>
@@ -56,6 +60,7 @@
     <div id="table">Irrelevant Original Text</div>
     <div id="inputWrapper">
         <input type="button" value="Get Data" id="tableButton" />
+        <input type="button" value="Select All" id="selectButton" />
     </div>
 </body>
 </html>
