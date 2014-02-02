@@ -41,10 +41,14 @@
     <script src="dynamiccontrols-new.js"></script>
     <script type="text/javascript">
         $(function () {
-            $('#table').dynamicTable([
-                ['This is my data.', 'Row 1, Column 2', 'And a third column for good measure.'],
-                ['Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!']
-            ]);
+            $('#table').dynamicTable({
+                initial: [
+                    ['This is my data.', 'Row 1, Column 2', 'And a third column for good measure.'],
+                    ['Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!']
+                ],
+                placeholder: "Placeholder",
+                draggable: false
+            });
 
             $('#tableButton').click(function () {
                 alert(JSON.stringify($('#table').dynamicTable('getData')));

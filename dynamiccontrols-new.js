@@ -501,7 +501,7 @@
                     δ._updateData();
                 });
 
-                if ($.ui && $.fn.sortable) {
+                if (δ.options.draggable && $.ui && $.fn.sortable) {
                     table.find('tbody').sortable({
                         axis: 'y',
                         helper: function (e, item) {
@@ -809,7 +809,9 @@
                 δ = this;
 
             δ._selectSingle(Ω.find('table').find('tr:first-child'));
-            δ._selectRange(Ω.find('table').find('tr:last-child'));
+
+            if (Ω.find('table').find('tr').length > 1)
+                δ._selectRange(Ω.find('table').find('tr:last-child'));
 
             δ._enableInsert();
 
@@ -1058,7 +1060,6 @@
         initial: null,
         placeholder: '',
         draggable: true,
-        dataArray: false,
         columns: 2,
         rows: 2
     };
