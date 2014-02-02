@@ -4,7 +4,7 @@ DynamicControls v0.7.2
 jQuery plugin for creating utilizing advanced data manipulation controls.  
 https://github.com/Roundaround/DynamicControls  
 Copyright (c) 2013 Evan Steinkerchner  
-Licensed under the GPL v2 license.  
+Licensed under the LGPL v2.1 license.  
 
 ###Changelog
 * **0.7.2** *2013-07-15*
