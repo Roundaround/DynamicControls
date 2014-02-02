@@ -29,6 +29,9 @@
  *    ~ Maintained separate internal objects for different control types.
  *    ~ Update internal data on every change.
  *    ~ Added/tweaked keyboard controls.
+ *    ~ Introduced DynamicText - a toggleable input<->textarea control.
+ *    ~ Added defaulttext option.
+ *    ~ Initial table input placeholder attributes are now the placeholder option.
 **/
 
 (function ($) {
@@ -132,6 +135,15 @@
     var DynamicControl = {};
     var $dc = DynamicControl;
 
+    $dc.defaults = {
+        initial: null,
+        placeholder: '',
+        defaulttext: '',
+        draggable: true,
+        columns: 2,
+        rows: 2
+    };
+
     $dc.table = function (container, options) {
         var δ = this,
             Ω = $(container);
@@ -150,9 +162,9 @@
             Ω.contents().remove();
 
             if (δ.data === null)
-                δ.data = [].repeat([].repeat(δ.options.placeholder, δ.options.columns), δ.options.rows);
+                δ.data = [].repeat([].repeat(δ.options.defaulttext, δ.options.columns), δ.options.rows);
 
-            δ.data = normalizeDoubleArray(δ.data, δ.options.placeholder);
+            δ.data = normalizeDoubleArray(δ.data, δ.options.defaulttext);
 
             δ._generateTable();
 
@@ -168,33 +180,6 @@
             });
 
             return δ;
-
-            //if (δ.data === null) {
-            //    switch (this.type) {
-            //        case 'table':
-            //            δ.data = [].repeat([].repeat(δ.options.placeholder, δ.options.columns), δ.options.rows);
-            //            break;
-            //        case 'list':
-            //            δ.data = [].repeat(δ.options.placeholder, δ.options.rows);
-            //            break;
-            //        default:
-            //            δ.data = δ.options.placeholder;
-            //    }
-            //}
-
-            //switch (δ.type) {
-            //    case 'table':
-            //        δ._generateTable();
-            //        break;
-            //    case 'list':
-            //        δ._generateList();
-            //        break;
-            //    case 'text':
-            //        δ._generateText();
-            //        break;
-            //}
-
-            //return δ;
         },
 
         _isDisjoint: function () {
@@ -391,13 +376,13 @@
                     if (δ.data[i][j].toString().length < 50) {
                         var input = $(document.createElement('input')).attr('type', 'text').appendTo(tdWrapper);
                         input.val(δ.data[i][j]);
-                        input.attr('placeholder', δ.data[i][j]);
+                        input.attr('placeholder', δ.options.placeholder);
                         δ._registerInputEvents(input);
 
                     } else {
                         var textarea = $(document.createElement('textarea')).appendTo(tdWrapper);
                         textarea.val(δ.data[i][j]);
-                        textarea.attr('placeholder', δ.data[i][j]);
+                        textarea.attr('placeholder', δ.options.placeholder);
                         textarea.attr('rows', 5);
                         δ._registerInputEvents(textarea);
 
@@ -508,7 +493,8 @@
                             });
                             ui.item.after(elems).remove();
                             δ._selectSingle(elems.first());
-                            δ._selectRange(elems.last());
+                            if (elems.length > 1)
+                                δ._selectRange(elems.last());
                             table.find('tr').hide().show(0);  // Redraw to fix borders
                             Ω.change();
                             δ._updateData();
@@ -869,7 +855,7 @@
                 δ._registerToggleEvents(toggle);
 
                 var input = $(document.createElement('input')).attr('type', 'text').appendTo(tdWrapper);
-                input.val(δ.options.placeholder);
+                input.val(δ.options.defaulttext);
                 input.attr('placeholder', δ.options.placeholder);
                 δ._registerInputEvents(input);
             }
@@ -935,6 +921,7 @@
 
             δ.destroy();
             δ._init();
+
             return δ;
         },
 
@@ -942,9 +929,13 @@
             var Ω = $(this.container),
                 δ = this;
 
+            δ.data = δ.options.initial; // For reset.
             Ω.removeClass('dcContainer').removeAttr('tabindex');
-            Ω.contents().remove().append(δ.original);
+            Ω.contents().remove();
             Ω.removeData('dynamictable');
+
+            Ω.append(δ.original);
+
             return Ω[0];
         }
     };
@@ -967,7 +958,7 @@
             Ω.contents().remove();
 
             if (δ.data === null)
-                δ.data = [].repeat(δ.options.placeholder, δ.options.rows);
+                δ.data = [].repeat(δ.options.defaulttext, δ.options.rows);
 
             δ._generateList();
 
@@ -1161,12 +1152,12 @@
                 if (δ.data[i].toString().length < 50) {
                     var input = $(document.createElement('input')).attr('type', 'text').appendTo(liWrapper);
                     input.val(δ.data[i]);
-                    input.attr('placeholder', δ.data[i]);
+                    input.attr('placeholder', δ.options.placeholder);
                     δ._registerInputEvents(input);
                 } else {
                     var textarea = $(document.createElement('textarea')).appendTo(liWrapper);
                     textarea.val(δ.data[i]);
-                    textarea.attr('placeholder', δ.data[i]);
+                    textarea.attr('placeholder', δ.options.placeholder);
                     textarea.attr('rows', 5);
                     δ._registerInputEvents(textarea);
                 }
@@ -1267,7 +1258,8 @@
                         });
                         ui.item.after(elems).remove();
                         δ._selectSingle(elems.first());
-                        δ._selectRange(elems.last());
+                        if (elems.length > 1)
+                            δ._selectRange(elems.last());
                         Ω.change();
                         δ._updateData();
                     }
@@ -1620,7 +1612,7 @@
             δ._registerToggleEvents(toggle);
 
             var input = $(document.createElement('input')).attr('type', 'text').appendTo(liWrapper);
-            input.val(δ.options.placeholder);
+            input.val(δ.options.defaulttext);
             input.attr('placeholder', δ.options.placeholder);
             δ._registerInputEvents(input);
 
@@ -1692,9 +1684,13 @@
             var Ω = $(this.container),
                 δ = this;
 
+            δ.data = δ.options.initial; // For reset.
             Ω.removeClass('dcContainer').removeAttr('tabindex');
-            Ω.contents().remove().append(δ.original);
+            Ω.contents().remove();
             Ω.removeData('dynamiclist');
+
+            Ω.append(δ.original);
+
             return Ω[0];
         }
     };
@@ -1805,13 +1801,5 @@
     //        return this;
     //    });
     //};
-
-    $dc.defaults = {
-        initial: null,
-        placeholder: '',
-        draggable: true,
-        columns: 2,
-        rows: 2
-    };
 
 }) (jQuery)

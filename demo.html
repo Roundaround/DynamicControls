@@ -13,10 +13,8 @@
             padding: 0;
         }
 
-        #table {
+        #dcWrapper {
             width: 50%;
-            border: 2px solid gray;
-            border-radius: 4px;
             position: absolute;
             top: 30px;
             left: 50%;
@@ -25,6 +23,12 @@
             -o-transform: translateX(-50%);
             -webkit-transform: translateX(-50%);
             transform: translateX(-50%);
+        }
+
+        #table, #list {
+            border: 2px solid gray;
+            border-radius: 4px;
+            margin-bottom: 30px;
         }
 
         #inputWrapper {
@@ -41,46 +45,72 @@
     <script src="dynamiccontrols-new.js"></script>
     <script type="text/javascript">
         $(function () {
-            //$('#table').dynamicTable({
-            //    initial: [
-            //        ['This is my data.', 'Row 1, Column 2', 'And a third column for good measure.'],
-            //        ['Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!']
-            //    ],
-            //    placeholder: "Placeholder",
-            //    draggable: false
-            //});
-
-            $('#table').dynamicList({
-                initial: ['This is my data.', 'Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!'],
-                placeholder: "Placeholder",
-                draggable: false
+            $('#table').dynamicTable({
+                initial: [
+                    ['This is my data.', 'Row 1, Column 2', 'And a third column for good measure.'],
+                    ['Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!']
+                ],
+                placeholder: "Placeholder"
             });
 
-            $('#tableButton').click(function () {
+            $('#list').dynamicList({
+                initial: ['This is my data.', 'Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!'],
+                placeholder: "Placeholder"
+            });
+
+            $('#table_data').click(function () {
                 alert(JSON.stringify($('#table').dynamicTable('getData')));
             });
 
-            $('#selectButton').click(function () {
+            $('#table_select').click(function () {
                 $('#table').dynamicTable('selectAll');
             });
 
-            $('#resetButton').click(function () {
+            $('#table_reset').click(function () {
                 $('#table').dynamicTable('reset');
             });
 
-            $('#destroyButton').click(function () {
+            $('#table_destroy').click(function () {
                 $('#table').dynamicTable('destroy');
+            });
+
+            $('#list_data').click(function () {
+                alert(JSON.stringify($('#list').dynamicList('getData')));
+            });
+
+            $('#list_select').click(function () {
+                $('#list').dynamicList('selectAll');
+            });
+
+            $('#list_reset').click(function () {
+                $('#list').dynamicList('reset');
+            });
+
+            $('#list_destroy').click(function () {
+                $('#list').dynamicList('destroy');
             });
         });
     </script>
 </head>
 <body>
-    <div id="table">Irrelevant Original Text</div>
+    <div id="dcWrapper">
+        <div id="table">Irrelevant Original Text</div>
+        <div id="list">Irrelevant Original Text</div>
+    </div>
     <div id="inputWrapper">
-        <input type="button" value="Get Data" id="tableButton" />
-        <input type="button" value="Select All" id="selectButton" />
-        <input type="button" value="Reset" id="resetButton" />
-        <input type="button" value="Destroy" id="destroyButton" />
+        <span>Table</span>
+        <br />
+        <input type="button" value="Get Data" id="table_data" />
+        <input type="button" value="Select All" id="table_select" />
+        <input type="button" value="Reset" id="table_reset" />
+        <input type="button" value="Destroy" id="table_destroy" />
+        <br />
+        <span>List</span>
+        <br />
+        <input type="button" value="Get Data" id="list_data" />
+        <input type="button" value="Select All" id="list_select" />
+        <input type="button" value="Reset" id="list_reset" />
+        <input type="button" value="Destroy" id="list_destroy" />
     </div>
 </body>
 </html>
