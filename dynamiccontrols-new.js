@@ -236,7 +236,7 @@
                     e.preventDefault();
 
                     if (!obj.closest('tr').is('.dcSelected,.dcSubSelect'))
-                        δ._selectDisjoint(obj.closest('tr'));
+                        δ._selectSingle(obj.closest('tr'));
                     δ.moveUp();
                     obj.focusEnd();
 
@@ -244,15 +244,18 @@
                     e.preventDefault();
 
                     if (!obj.closest('tr').is('.dcSelected,.dcSubSelect'))
-                        δ._selectDisjoint(obj.closest('tr'));
+                        δ._selectSingle(obj.closest('tr'));
                     δ.moveDown();
                     obj.focusEnd();
 
                 } else if (e.keyCode == 38 && e.shiftKey) { // Shift + Up
                     e.preventDefault();
 
-                    if (table.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
-                        if (!table.find('.dcSelected,.dcSubSelect').is(':first-child')) {
+                    if (table.find('.dcSelected').length == 0) {
+                        δ._deselectSub();
+                        δ._selectSingle(table.find('tr:last-child'));
+                    } else if (table.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
+                        if (!table.find('.dcSelected,.dcSubSelect').first().is(':first-child')) {
                             δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().prev());
                         }
                     } else {
@@ -294,7 +297,7 @@
                     e.preventDefault();
 
                     var parent = $(this).parent();
-                    //toggleInput(parent);
+                    δ._toggleInput(parent);
                     parent.find('input[type="text"],textarea').first().focusEnd();
 
                 } else if (e.keyCode == 83 && e.altKey) { // Alt + S
@@ -302,13 +305,13 @@
 
                     δ._selectDisjoint($(this).closest('tr'));
 
-                } else if ((e.keyCode == 188) && e.ctrlKey) { // Ctrl + <
+                } else if ((e.keyCode == 188 || e.keyCode == 37) && e.ctrlKey) { // Ctrl + < / Left Arrow
                     e.preventDefault();
 
                     if (!obj.closest('td').is(':first-child'))
                         obj.closest('td').prev().find('input[type="text"],textarea').first().focusEnd();
 
-                } else if ((e.keyCode == 190) && e.ctrlKey) { // Ctrl + >
+                } else if ((e.keyCode == 190 || e.keyCode == 39) && e.ctrlKey) { // Ctrl + > / Right Arrow
                     e.preventDefault();
 
                     if (!obj.closest('td').is(':last-child'))
@@ -325,13 +328,61 @@
             obj.change(function (e) {
                 Ω.change(e);
             });
+
+            return δ;
+        },
+
+        _registerRowEvents: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            var table = Ω.find('table');
+            obj = $(obj);
+
+            obj.click(function (e) {
+                e.stopPropagation();
+                //Ω.parents().each(function () {
+                //    $(this).attr('data-dcScroll', $(this).scrollTop());
+                //});
+                Ω.focus();
+                //Ω.parents().each(function () {
+                //    $(this).scrollTop($(this).attr('data-dcScroll')).attr('data-dcScroll', '');
+                //});
+
+                if (e.shiftKey)
+                    δ._selectRange($(this));
+                else if (e.ctrlKey)
+                    δ._selectDisjoint($(this));
+                else
+                    δ._selectSingle($(this));
+            });
+
+            return δ;
+        },
+
+        _registerToggleEvents: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            obj.click(function (e) {
+                e.stopPropagation();
+                //Ω.parents().each(function () {
+                //    $(this).attr('data-dcScroll', $(this).scrollTop());
+                //});
+                Ω.focus();
+                //Ω.parents().each(function () {
+                //    $(this).scrollTop($(this).attr('data-dcScroll')).attr('data-dcScroll', '');
+                //});
+
+                δ._toggleInput(this);
+            });
+
+            return δ;
         },
 
         _generateTable: function () {
             var Ω = $(this.container),
                 δ = this;
-
-            alert('Test');
 
             var wrapper = $(document.createElement('div')).css({ height: '100%', width: '100%', margin: 0, padding: 0 }).appendTo(Ω);
             var table = $(document.createElement('table')).addClass('dcTable').appendTo(wrapper);
@@ -343,7 +394,7 @@
                     var td = $(document.createElement('td')).appendTo(tr);
                     var tdWrapper = $(document.createElement('div')).appendTo(td);
                     var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(tdWrapper);
-                    //registerEvents('toggle', toggle);
+                    δ._registerToggleEvents(toggle);
 
                     if (δ.data[i][j].toString().length < 50) {
                         var input = $(document.createElement('input')).attr('type', 'text').appendTo(tdWrapper);
@@ -361,7 +412,7 @@
                         textarea.attr('placeholder', δ.data[i][j]);
                         textarea.attr('rows', 5);
                         δ._registerInputEvents(textarea);
-
+                        
                         textarea.change(function (e) {
                             δ._updateData();
                         });
@@ -369,7 +420,7 @@
                     }
                 }
 
-                //registerEvents('row', tr);
+                δ._registerRowEvents(tr);
 
                 Ω.unbind('keydown');
                 Ω.keydown(function (e) {
@@ -383,10 +434,13 @@
                     } else if (e.keyCode == 69) { // E
                         e.preventDefault();
                         δ._focusInSelection();
+                    } else if (e.keyCode == 9) { // Tab
+                        e.preventDefault();
+                        δ._focusInSelection();
                     } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
                         e.preventDefault();
                         table.find('.dcSelected > td,.dcSubSelect > td').each(function () {
-                            //toggleInput(this);
+                            δ._toggleInput(this);
                         });
                     } else if (e.keyCode == 46) { // Delete
                         if (table.find('.dcSelected,.dcSubSelect').length > 0) {
@@ -447,39 +501,39 @@
                     δ._updateData();
                 });
 
-                //if ($.ui && $.fn.sortable) {
-                //    table.find('tbody').sortable({
-                //        axis: 'y',
-                //        helper: function (e, item) {
-                //            item.children().each(function () {
-                //                $(this).width($(this).width());
-                //            });
+                if ($.ui && $.fn.sortable) {
+                    table.find('tbody').sortable({
+                        axis: 'y',
+                        helper: function (e, item) {
+                            item.children().each(function () {
+                                $(this).width($(this).width());
+                            });
 
-                //            if (!item.is('.dcSelected,.dcSubSelect')) {
-                //                δ._selectSingle(item);
-                //            }
+                            if (!item.is('.dcSelected,.dcSubSelect')) {
+                                δ._selectSingle(item);
+                            }
 
-                //            var elems = table.find('.dcSelected,.dcSubSelect').clone();
-                //            item.data('multidrag', elems).siblings('.dcSelected,.dcSubSelect').remove();
-                //            var helper = $('<tr />');
-                //            return helper.append(elems);
-                //        },
-                //        stop: function (e, ui) {
-                //            var elems = ui.item.data('multidrag');
-                //            elems.each(function () {
-                //                //registerEvents('row', this);
-                //                //registerEvents('control', $(this).find('input[type="text"],textarea'));
-                //                //registerEvents('toggle', $(this).find('.dcToggle'));
-                //            });
-                //            ui.item.after(elems).remove();
-                //            δ._selectSingle(elems.first());
-                //            δ._selectRange(elems.last());
-                //            table.find('tr').hide().show(0);  // Redraw to fix borders
-                //            Ω.change();
-                //            δ._updateData();
-                //        }
-                //    });
-                //}s
+                            var elems = table.find('.dcSelected,.dcSubSelect').clone();
+                            item.data('multidrag', elems).siblings('.dcSelected,.dcSubSelect').remove();
+                            var helper = $('<tr />');
+                            return helper.append(elems);
+                        },
+                        stop: function (e, ui) {
+                            var elems = ui.item.data('multidrag');
+                            elems.each(function () {
+                                δ._registerRowEvents($(this));
+                                δ._registerInputEvents($(this).find('input[type="text"],textarea'));
+                                δ._registerToggleEvents($(this).find('.dcToggle'));
+                            });
+                            ui.item.after(elems).remove();
+                            δ._selectSingle(elems.first());
+                            δ._selectRange(elems.last());
+                            table.find('tr').hide().show(0);  // Redraw to fix borders
+                            Ω.change();
+                            δ._updateData();
+                        }
+                    });
+                }
             }
 
             var controlWrapper = $(document.createElement('div')).addClass('dcControlWrapper').appendTo(wrapper);
@@ -487,31 +541,37 @@
             var controlList = $(document.createElement('ul')).appendTo(controlPanel);
 
             var control_select = $(document.createElement('li')).text('Select All').click(function (e) {
+                e.stopPropagation();
                 δ.selectAll();
             }).appendTo(controlList);
 
             var control_deselect = $(document.createElement('li')).text('Deselect All').click(function (e) {
+                e.stopPropagation();
                 δ.deselectAll();
             }).appendTo(controlList);
 
-            var control_moveUp = $(document.createElement('li')).text('Move Up').click(function (e) {
+            var control_moveUp = $(document.createElement('li')).text('Move Up').addClass('dcMove dcDisabled').click(function (e) {
+                e.stopPropagation();
                 if (!$(this).hasClass('dcDisabled'))
                     δ.moveUp();
             }).appendTo(controlList);
 
-            var control_moveDown = $(document.createElement('li')).text('Move Down').click(function (e) {
+            var control_moveDown = $(document.createElement('li')).text('Move Down').addClass('dcMove dcDisabled').click(function (e) {
+                e.stopPropagation();
                 if (!$(this).hasClass('dcDisabled'))
                     δ.moveDown();
             }).appendTo(controlList);
 
-            var control_insert = $(document.createElement('li')).text('Insert').click(function (e) {
+            var control_insert = $(document.createElement('li')).text('Insert').addClass('dcInsert').click(function (e) {
+                e.stopPropagation();
                 if (!$(this).hasClass('dcDisabled')) {
                     δ.insert();
                     δ._focusInSelection();
                 }
             }).appendTo(controlList);
 
-            var control_remove = $(document.createElement('li')).text('Remove Selected').click(function (e) {
+            var control_remove = $(document.createElement('li')).text('Remove').addClass('dcRemove dcDisabled').click(function (e) {
+                e.stopPropagation();
                 δ.remove()
             }).appendTo(controlList);
 
@@ -536,12 +596,58 @@
             return δ;
         },
 
-        _enableControls: function () {
+        _enableInsert: function () {
+            var Ω = $(this.container),
+                δ = this;
 
+            Ω.find('.dcInsert').removeClass('dcDisabled');
+
+            return δ;
         },
 
-        _disableControls: function () {
+        _disableInsert: function () {
+            var Ω = $(this.container),
+                δ = this;
 
+            Ω.find('.dcInsert').addClass('dcDisabled');
+
+            return δ;
+        },
+
+        _enableMove: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcMove').removeClass('dcDisabled');
+
+            return δ;
+        },
+
+        _disableMove: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcMove').addClass('dcDisabled');
+
+            return δ;
+        },
+
+        _enableRemove: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcRemove').removeClass('dcDisabled');
+
+            return δ;
+        },
+
+        _disableRemove: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcRemove').addClass('dcDisabled');
+
+            return δ;
         },
 
         _focusInSelection: function (row, item) {
@@ -555,15 +661,57 @@
             return δ;
         },
 
+        _toggleInput: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            obj = $(obj);
+            if (obj.prop('tagName') == 'DIV')
+                obj = obj.closest('td');
+
+            var height = Ω.height();
+
+            var control = obj.find('input[type="text"],textarea');
+
+            if (control.prop('tagName') == 'INPUT') {
+                var text = control.val();
+                var placeholder = control.attr('placeholder');
+                var newControl = $(document.createElement('textarea')).insertAfter(control);
+                newControl.val(text);
+                newControl.attr('placeholder', placeholder);
+                newControl.attr('rows', 5);
+                control.remove();
+                δ._registerInputEvents(newControl);
+            } else {
+                var text = control.val();
+                var placeholder = control.attr('placeholder');
+                var newControl = $(document.createElement('input')).attr('type', 'text').insertAfter(control);
+                newControl.val(text);
+                newControl.attr('placeholder', placeholder);
+                control.remove();
+                δ._registerInputEvents(newControl);
+            }
+
+            if (Ω.height() != height)
+                Ω.resize();
+
+            return δ;
+        },
+
         _selectSingle: function (obj) {
             var Ω = $(this.container),
                 δ = this;
+
+            δ.deselectAll();
+
+            δ._enableInsert();
+            δ._enableMove();
+            δ._enableRemove();
 
             obj = $(obj);
             if (obj.prop('tagName') == 'TD')
                 obj = obj.parent();
 
-            δ.deselectAll();
             obj.addClass('dcSelected');
 
             return δ;
@@ -573,16 +721,23 @@
             var Ω = $(this.container),
                 δ = this;
 
+            δ._enableInsert();
+            δ._enableMove();
+            δ._enableRemove();
+
             obj = $(obj);
             if (obj.prop('tagName') == 'TD')
                 obj = obj.parent();
 
             if (obj.hasClass('dcSelected')) {
-                δ.deselectAll();
-            } else if (Ω.find('table').find('.dcSelected').length != 1) {
+                if (Ω.find('table').find('.dcSubSelect').length > 0)
+                    δ._deselectSub();
+                else
+                    δ.deselectAll();
+            } else if (Ω.find('table').find('.dcSelected').length == 0) {
                 δ._selectSingle(obj);
             } else {
-                δ.deselectAll();
+                δ._deselectSub();
 
                 obj.addClass('dcSubSelect');
                 var after = obj.nextAll('.dcSelected').length == 1;
@@ -600,13 +755,15 @@
             var Ω = $(this.container),
                 δ = this;
 
+            δ._disableInsert();
+            δ._enableMove();
+            δ._enableRemove();
+
             obj = $(obj);
             if (obj.prop('tagName') == 'TD')
                 obj = obj.parent();
 
             if (Ω.find('table').find('.dcSelected,.dcSubSelect').length > 0) {
-                δ._disableControls();
-
                 if (obj.is('.dcSelected,.dcSubSelect')) {
                     obj.removeClass('dcSelected').removeClass('dcSubSelect');
                 } else {
@@ -625,6 +782,11 @@
 
             Ω.find('table').find('tr').removeClass('dcSelected');
 
+            if (Ω.find('table').find('.dcSelected,.dcSubSelect').length == 0) {
+                δ._disableMove();
+                δ._disableRemove();
+            }
+
             return δ;
         },
 
@@ -633,6 +795,11 @@
                 δ = this;
 
             Ω.find('table').find('tr').removeClass('dcSubSelect');
+
+            if (Ω.find('table').find('.dcSelected,.dcSubSelect').length == 0) {
+                δ._disableMove();
+                δ._disableRemove();
+            }
 
             return δ;
         },
@@ -644,7 +811,7 @@
             δ._selectSingle(Ω.find('table').find('tr:first-child'));
             δ._selectRange(Ω.find('table').find('tr:last-child'));
 
-            δ._enableControls();
+            δ._enableInsert();
 
             return δ;
         },
@@ -656,7 +823,7 @@
             δ._deselect();
             δ._deselectSub();
 
-            δ._enableControls();
+            δ._enableInsert();
 
             return δ;
         },
@@ -716,12 +883,12 @@
                 var td = $(document.createElement('td')).appendTo(tr);
                 var tdWrapper = $(document.createElement('div')).appendTo(td);
                 var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(tdWrapper);
-                //registerEvents('toggle', toggle);
+                δ._registerToggleEvents(toggle);
 
                 var input = $(document.createElement('input')).attr('type', 'text').appendTo(tdWrapper);
                 input.val(δ.options.placeholder);
                 input.attr('placeholder', δ.options.placeholder);
-                //registerEvents('control', input);
+                δ._registerInputEvents(input);
             }
 
             var table = Ω.find('table');
@@ -736,7 +903,7 @@
                 table.find('tr:last-child').after(tr);
             }
 
-            //registerEvents('row', tr);
+            δ._registerRowEvents(tr);
 
             δ._selectSingle(tr);
             Ω.change();
@@ -758,10 +925,14 @@
                 var height = Ω.height();
 
                 table.find('.dcSelected,.dcSubSelect').remove();
-                if (table.find('tr').length == 0)
+                if (table.find('tr').length == 0) {
                     δ.insert();
+                } else {
+                    δ._enableInsert();
+                    δ._disableMove();
+                    δ._disableRemove();
+                }
 
-                δ._enableControls();
                 Ω.change();
 
                 if (Ω.height() != height)
