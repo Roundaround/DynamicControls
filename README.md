@@ -1,6 +1,6 @@
 #DynamicControls
 
-DynamicControls v0.7.2  
+DynamicControls v0.7.4  
 jQuery plugin for creating utilizing advanced data manipulation controls.  
 https://github.com/Roundaround/DynamicControls  
 Copyright (c) 2013 Evan Steinkerchner  
@@ -17,4 +17,8 @@ Licensed under the LGPL v2.1 license.
     - Made focusColor a property.
     - Fixed selection bug with Ctrl + Del shortcut.
     - Reorganized fetching unique id.
+* **0.7.4** *2013-07-20*
+    - Moved the multi-dimensional array checker outside plugin.
+    - Wrapped entire file in local scope to avoid $ conflicts.
+    - Checked if browser supports rgba before setting alpha value.
 
