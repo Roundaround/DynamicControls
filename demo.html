@@ -25,7 +25,7 @@
             transform: translateX(-50%);
         }
 
-        #table, #list {
+        #table, #list, #text {
             border: 2px solid gray;
             border-radius: 4px;
             margin-bottom: 30px;
@@ -42,7 +42,7 @@
     </style>
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"></script>
-    <script src="dynamiccontrols-new.js"></script>
+    <script src="dynamiccontrols.js"></script>
     <script type="text/javascript">
         $(function () {
             $('#table').dynamicTable({
@@ -50,12 +50,17 @@
                     ['This is my data.', 'Row 1, Column 2', 'And a third column for good measure.'],
                     ['Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!']
                 ],
-                placeholder: "Placeholder"
+                placeholder: 'Placeholder'
             });
 
             $('#list').dynamicList({
                 initial: ['This is my data.', 'Onto the second row.', 'Getting exciting!', 'I\'m going crazy!!'],
-                placeholder: "Placeholder"
+                placeholder: 'Placeholder'
+            });
+
+            $('#text').dynamicText({
+                initial: 'This is my data.',
+                placeholder: 'Placeholder'
             });
 
             $('#table_data').click(function () {
@@ -89,6 +94,18 @@
             $('#list_destroy').click(function () {
                 $('#list').dynamicList('destroy');
             });
+
+            $('#text_data').click(function () {
+                alert(JSON.stringify($('#text').dynamicText('getData')));
+            });
+
+            $('#text_reset').click(function () {
+                $('#text').dynamicText('reset');
+            });
+
+            $('#text_destroy').click(function () {
+                $('#text').dynamicText('destroy');
+            });
         });
     </script>
 </head>
@@ -96,6 +113,7 @@
     <div id="dcWrapper">
         <div id="table">Irrelevant Original Text</div>
         <div id="list">Irrelevant Original Text</div>
+        <div id="text">Irrelevant Original Text</div>
     </div>
     <div id="inputWrapper">
         <span>Table</span>
@@ -111,6 +129,12 @@
         <input type="button" value="Select All" id="list_select" />
         <input type="button" value="Reset" id="list_reset" />
         <input type="button" value="Destroy" id="list_destroy" />
+        <br />
+        <span>Text</span>
+        <br />
+        <input type="button" value="Get Data" id="text_data" />
+        <input type="button" value="Reset" id="text_reset" />
+        <input type="button" value="Destroy" id="text_destroy" />
     </div>
 </body>
 </html>

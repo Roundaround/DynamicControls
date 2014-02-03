@@ -21,4 +21,12 @@ Licensed under the LGPL v2.1 license.
     - Moved the multi-dimensional array checker outside plugin.
     - Wrapped entire file in local scope to avoid $ conflicts.
     - Checked if browser supports rgba before setting alpha value.
-
+* **1.0.0** *2014-02-03*
+    - Completely rewrote to adhere to jQuery plugin standards.
+    - Created internal use namespace DynamicControls/$dc.
+    - Maintained separate internal objects for different control types.
+    - Update internal data on every change.
+    - Added/tweaked keyboard controls.
+    - Introduced DynamicText - a toggleable input<->textarea control.
+    - Added defaulttext option.
+    - Initial table input placeholder attributes are now the placeholder option.

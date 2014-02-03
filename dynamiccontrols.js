@@ -1,14 +1,92 @@
-﻿(function ($) {
+﻿/**
+ *  DynamicControls v1.0.0
+ *  jQuery Plugin for creating and utilizing advanced data manipulation controls.
+ *  https://github.com/Roundaround/DynamicControls
+ *  Copyright (c) 2013 Evan Steinkerchner
+ *  Licensed under the LGPL v2.1 license.
+**/
 
-    //#region Utility functions and jQuery.clone fix.
+/**
+ *  Changelog:
+ *
+ *  0.7.2:
+ *    ~ Moved several functions outside of objects.
+ *    ~ Wrote color parser function.
+ *    ~ Made properties private.
+ *    ~ Removed public accessor for several functions.
+ *    ~ Added public setter for default data.
+ *    ~ Removed overwrite property.
+ *    ~ Made focusColor a property.
+ *    ~ Fixed selection bug with Ctrl + Del shortcut.
+ *    ~ Reorganized fetching unique id.
+ *  0.7.4:
+ *    ~ Moved the multi-dimensional array checker outside plugin.
+ *    ~ Wrapped entire file in local scope to avoid $ conflicts.
+ *    ~ Checked if browser supports rgba before setting alpha value.
+ *  1.0.0:
+ *    ~ Completely rewrote to adhere to jQuery plugin standards.
+ *    ~ Created internal use namespace DynamicControls/$dc.
+ *    ~ Maintained separate internal objects for different control types.
+ *    ~ Update internal data on every change.
+ *    ~ Added/tweaked keyboard controls.
+ *    ~ Introduced DynamicText - a toggleable input<->textarea control.
+ *    ~ Added defaulttext option.
+ *    ~ Initial table input placeholder attributes are now the placeholder option.
+**/
 
-    Array.prototype.repeat = function (val, len) {
-        while (len) this[--len] = val;
-        return this;
-    };
+(function ($) {
 
-    function isArray(obj) {
-        return Object.prototype.toString.call(obj) === '[object Array]';
+    if (typeof Array.prototype.repeat != 'function') {
+        Array.prototype.repeat = function (val, len){
+            while (len) this[len--] = val;
+            return this;
+        };
+    }
+
+    function isArrayOfArrays(obj) {
+        if (!$.isArray(obj)) return false;
+
+        var flag = true;
+        for (var i = 0; i < obj.length ; i++) {
+            if (!$.isArray(obj[i])) return false;
+        }
+
+        return true;
+    }
+
+    function getDepthOfArrays(obj) {
+        var depth = 0;
+        while ($.isArray(obj)) {
+            obj = obj[0];
+            depth++;
+        }
+        return depth;
+    }
+
+    function normalizeDoubleArray(obj, filler) {
+        var cols = 0,
+            rows = obj.length;
+        for (var i = 0; i < rows ; i++) {
+            cols = Math.max(obj[i].length, cols);
+        }
+
+        for (var i = 0; i < rows ; i++) {
+            if (!$.isArray(obj[i])) {
+                obj[i] = [].repeat(filler, cols);
+            } else if (obj[i].length != cols) {
+                for (var j = obj[i].length; j < cols ; j++) {
+                    obj[i].push(filler);
+                }
+            }
+        }
+
+        return obj;
+    }
+
+    if (typeof String.prototype.startsWith != 'function') {
+        String.prototype.startsWith = function (str) {
+            return this.slice(0, str.length) == str;
+        };
     }
 
     $.fn.setCursorPosition = function (position) {
@@ -54,947 +132,512 @@
         };
     })($.fn.clone)
 
-    //#endregion
-
-    //#region DynamicList
-
-    $.fn.dynamicList = function (args) {
-        var Ω = this;
-        if (Ω.css('display') !== 'block')
-            throw new Error('Invalid container for dynamicList.');
-
-        args = args || {};
-
-        var i, j;
-
-        var defaultData = args.defaultData || 'Enter Data Here.';
-        var data = args.data || [].repeat(defaultData, 4);
-
-        if (!isArray(data))
-            throw new Error('Invalid data for dynamicList.');
-
-        function rows() {
-            return data.length;
-        }
-
-        Ω.contents().remove();
-        var id = 0;
-        $('[data-dcid]').each(function () {
-            id = Math.max(parseInt($(this).attr('data-dcid')), id);
-        });
-        Ω.attr('data-dcid', ++id);
-        var containSelect = '[data-dcid="' + id + '"]';
-
-        var wrapper = $(document.createElement('div')).css({ height: '100%', width: '100%', margin: 0, padding: 0 }).appendTo(Ω);
-
-        var list = $(document.createElement('ul')).addClass('dcList').appendTo(wrapper);
-
-        for (i = 0; i < rows() ; i++) {
-            var li = $(document.createElement('li')).appendTo(list);
-            var liWrapper = $(document.createElement('div')).appendTo(li);
-
-            var bullet = $(document.createElement('div')).addClass('dcBullet').text('•').appendTo(liWrapper);
-            var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(liWrapper);
-            registerEvents('toggle', toggle);
-
-            if (data[i].toString().length < 50) {
-                var input = $(document.createElement('input')).attr('type', 'text').appendTo(liWrapper);
-                input.val(data[i]);
-                input.attr('placeholder', data[i]);
-                registerEvents('control', input);
-            } else {
-                var textarea = $(document.createElement('textarea')).appendTo(liWrapper);
-                textarea.val(data[i]);
-                textarea.attr('placeholder', data[i]);
-                textarea.attr('rows', 5);
-                registerEvents('control', textarea);
-            }
-
-            registerEvents('row', li);
-        }
-
-        var controlWrapper = $(document.createElement('div')).addClass('dcControlWrapper').appendTo(wrapper);
-        var controlPanel = $(document.createElement('div')).addClass('dcControlPanel').appendTo(controlWrapper);
-        var controlList = $(document.createElement('ul')).appendTo(controlPanel);
-
-        var control_select = $(document.createElement('li')).addClass('dcIconSelect').text('Select All').click(selectAll).appendTo(controlList);
-        var control_deselect = $(document.createElement('li')).addClass('dcIconDeselect').text('Deselect All').click(clearSelection).appendTo(controlList);
-        var control_moveUp = $(document.createElement('li')).addClass('dcIconMoveUp').text('Move Up').click(function (e) {
-            if (!$(this).hasClass('dcDisabled'))
-                moveUp();
-        }).appendTo(controlList);
-        var control_moveDown = $(document.createElement('li')).addClass('dcIconMoveDown').text('Move Down').click(function (e) {
-            if (!$(this).hasClass('dcDisabled'))
-                moveDown();
-        }).appendTo(controlList);
-        var control_insertAfter = $(document.createElement('li')).addClass('dcIconInsert').text('Insert After').click(function (e) {
-            if (!$(this).hasClass('dcDisabled')) {
-                insertAfter();
-                focusInSelection();
-            }
-        }).appendTo(controlList);
-        var control_remove = $(document.createElement('li')).addClass('dcIconRemove').click(removeSelected).appendTo(controlList);
-        control_remove.append('<span>Remove</span>');
-
-        Ω.setDefaultData = function (newDefault) {
-            if (typeof newDefault === 'string')
-                defaultData = newDefault;
-            else if (newDefault.toString)
-                defaultData = newDefault.toString;
-            else if (newDefault === undefined)
-                defaultData = '';
-        };
-
-        function disableControls() {
-            //control_insertBefore.addClass('dcDisabled');
-            control_insertAfter.addClass('dcDisabled');
-        }
-
-        function enableControls() {
-            //control_insertBefore.removeClass('dcDisabled');
-            control_insertAfter.removeClass('dcDisabled');
-        }
-
-        function isDisjoint() {
-            return control_insertAfter.hasClass('dcDisabled');
-        }
-
-        Ω.selectSingle = selectSingle;
-        function selectSingle(obj) {
-            Ω.click();
-            obj = $(obj);
-            if (obj.prop('tagName') == 'DIV')
-                obj = obj.parent();
-
-            clearSelection();
-            obj.addClass('dcSelected');
-
-            enableControls();
-        }
-
-        Ω.selectRange = selectRange;
-        function selectRange(obj) {
-            obj = $(obj);
-            if (obj.prop('tagName') == 'DIV')
-                obj = obj.parent();
-
-            if (obj.hasClass('dcSelected')) {
-                clearSubSelect();
-            } else if (list.find('.dcSelected').length != 1) {
-                selectSingle(obj);
-            } else {
-                clearSubSelect();
-
-                obj.addClass('dcSubSelect');
-                var after = obj.nextAll('.dcSelected').length == 1;
-                var rows = after ? obj.nextAll('li') : obj.prevAll('li');
-                for (var i = 0; i < rows.length; i++) {
-                    if (rows.eq(i).hasClass('dcSelected')) return;
-                    rows.eq(i).addClass('dcSubSelect');
-                }
-            }
-
-            enableControls();
-        }
-
-        Ω.selectDisjoint = selectDisjoint;
-        function selectDisjoint(obj) {
-            obj = $(obj);
-            if (obj.prop('tagName') == 'DIV')
-                obj = obj.parent();
-
-            if (list.find('.dcSelected,.dcSubSelect').length > 0) {
-                disableControls();
-
-                if (obj.is('.dcSelected,.dcSubSelect')) {
-                    obj.removeClass('dcSelected').removeClass('dcSubSelect');
-                } else {
-                    obj.addClass('dcSubSelect');
-                }
-            } else {
-                selectSingle(obj);
-            }
-        }
-
-        Ω.selectAll = selectAll;
-        function selectAll() {
-            selectSingle(list.find('li:first-child'));
-            selectRange(list.find('li:last-child'));
-
-            enableControls();
-        }
-
-        Ω.clearSelection = clearSelection;
-        function clearSelection() {
-            list.find('.dcSelected').removeClass('dcSelected');
-            list.find('.dcSubSelect').removeClass('dcSubSelect');
-
-            enableControls();
-        }
-
-        Ω.clearSubSelect = clearSubSelect;
-        function clearSubSelect() {
-            list.find('.dcSubSelect').removeClass('dcSubSelect');
-
-            enableControls();
-        }
-
-        Ω.moveUp = moveUp;
-        function moveUp() {
-            if (list.find('.dcSelected,.dcSubSelect').length > 0 &&
-                !list.find('.dcSelected,.dcSubSelect').is(':first-child')) {
-                list.find('.dcSelected,.dcSubSelect').each(function () {
-                    $(this).insertBefore($(this).prev());
-                });
-                Ω.change();
-            }
-        }
-
-        Ω.moveDown = moveDown;
-        function moveDown() {
-            if (list.find('.dcSelected,.dcSubSelect').length > 0 &&
-                !list.find('.dcSelected,.dcSubSelect').is(':last-child')) {
-                $(list.find('.dcSelected,.dcSubSelect').get().reverse()).each(function () {
-                    $(this).insertAfter($(this).next());
-                });
-                Ω.change();
-            }
-        }
-
-        Ω.insertAfter = insertAfter;
-        function insertAfter() {
-            var height = Ω.height();
-
-            var li = $(document.createElement('li'));
-            var liWrapper = $(document.createElement('div')).appendTo(li);
-
-            var bullet = $(document.createElement('div')).addClass('dcBullet').text('•').appendTo(liWrapper);
-            var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(liWrapper);
-            registerEvents('toggle', toggle);
-
-            var input = $(document.createElement('input')).attr('type', 'text').appendTo(liWrapper);
-            input.val(defaultData);
-            input.attr('placeholder', defaultData);
-            registerEvents('control', input);
-
-            if (list.find('li').length == 0) {
-                list.append(li);
-            } else if (list.find('.dcSelected').length == 1) {
-                if (list.find('.dcSubSelect').length > 0) {
-                    list.find('.dcSelected,.dcSubSelect').last().after(li);
-                } else {
-                    list.find('.dcSelected').after(li);
-                }
-            } else {
-                list.find('li:last-child').after(li);
-            }
-
-            registerEvents('row', li);
-
-            selectSingle(li);
-            Ω.change();
-
-            if (Ω.height() != height)
-                Ω.resize();
-        }
-
-        Ω.insertBefore = insertBefore;
-        function insertBefore() {
-            var height = Ω.height();
-
-            var li = $(document.createElement('li'));
-            var liWrapper = $(document.createElement('div')).appendTo(li);
-
-            var bullet = $(document.createElement('div')).addClass('dcBullet').text('•').appendTo(liWrapper);
-            var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(liWrapper);
-            registerEvents('toggle', toggle);
-
-            var input = $(document.createElement('input')).attr('type', 'text').appendTo(liWrapper);
-            input.val(defaultData);
-            input.attr('placeholder', defaultData);
-            registerEvents('control', input);
-
-            if (list.find('li').length == 0) {
-                list.append(li);
-            } else if (list.find('.dcSelected').length == 1) {
-                if (list.find('.dcSubSelect').length > 0) {
-                    list.find('.dcSelected,.dcSubSelect').first().before(li);
-                } else {
-                    list.find('.dcSelected').before(li);
-                }
-            } else {
-                list.find('li:first-child').before(li);
-            }
-
-            registerEvents('row', li);
-
-            selectSingle(li);
-            Ω.change();
-
-            if (Ω.height() != height)
-                Ω.resize();
-        }
-
-        Ω.removeSelected = removeSelected;
-        function removeSelected() {
-            if (list.find('.dcSelected,.dcSubSelect').length > 0 && confirm('Are you sure you wish to delete the selected rows?')) {
-                var height = Ω.height();
-
-                list.find('.dcSelected,.dcSubSelect').remove();
-                if (list.find('li').length == 0)
-                    insertAfter();
-
-                enableControls();
-
-                Ω.change();
-
-                if (Ω.height() != height)
-                    Ω.resize();
-            }
-
-            Ω.focus();
-        }
-
-        function toggleInput(obj) {
-            obj = $(obj);
-            if (obj.prop('tagName') == 'DIV')
-                obj = obj.closest('li');
-
-            var height = Ω.height();
-
-            var control = obj.find('input[type="text"],textarea');
-
-            if (control.prop('tagName') == 'INPUT') {
-                var text = control.val();
-                var placeholder = control.attr('placeholder');
-                var newControl = $(document.createElement('textarea')).insertAfter(control);
-                newControl.val(text);
-                newControl.attr('placeholder', placeholder);
-                newControl.attr('rows', 5);
-                control.remove();
-                registerEvents('control', newControl);
-            } else {
-                var text = control.val();
-                var placeholder = control.attr('placeholder');
-                var newControl = $(document.createElement('input')).attr('type', 'text').insertAfter(control);
-                newControl.val(text);
-                newControl.attr('placeholder', placeholder);
-                control.remove();
-                registerEvents('control', newControl);
-            }
-
-            if (Ω.height() != height)
-                Ω.resize();
-        }
-
-        Ω.focusInSelection = focusInSelection;
-        function focusInSelection(row) {
-            row = row || 0;
-            list.find('.dcSelected,.dcSubSelect').eq(row).find('input[type="text"],textarea').first().focusEnd();
-        }
-
-        Ω.getData = getData;
-        function getData() {
-            var data = [];
-            for (var i = 0; i < list.find('li').length; i++) {
-                data.push(list.find('li').eq(i).find('input[type="text"],textarea').val());
-            }
-            return data;
-        }
-
-        function registerEvents(type, obj) {
+    var DynamicControl = {};
+    var $dc = DynamicControl;
+
+    $dc.defaults = {
+        initial: null,
+        placeholder: '',
+        defaulttext: '',
+        draggable: true,
+        columns: 2,
+        rows: 2
+    };
+
+    $dc.table = function (container, options) {
+        var δ = this,
+            Ω = $(container);
+
+        δ.container = Ω;
+        δ.original = Ω.contents().clone();
+        δ.options = options;
+        δ.data = options.initial;
+    };
+
+    $dc.table.prototype = {
+        _init: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.contents().remove();
+
+            if (δ.data === null)
+                δ.data = [].repeat([].repeat(δ.options.defaulttext, δ.options.columns), δ.options.rows);
+
+            δ.data = normalizeDoubleArray(δ.data, δ.options.defaulttext);
+
+            δ._generateTable();
+
+            Ω.addClass('dcContainer');
+            Ω.attr('tabindex', 1);
+
+            Ω.click(function (e) {
+                δ.deselectAll();
+            });
+
+            Ω.find('.dcControlWrapper').click(function (e) {
+                e.stopPropagation();
+            });
+
+            return δ;
+        },
+
+        _isDisjoint: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            return Ω.find('tr.dcSubSelect').length > 0;
+        },
+
+        _registerInputEvents: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            var table = Ω.find('.dcTable');
             obj = $(obj);
 
-            if (type == 'control') {
-                obj.click(function (e) {
-                    e.stopPropagation();
-                });
-                obj.keydown(function (e) {
-                    e.stopPropagation();
-                    if (e.keyCode == 27) { // Escape
-                        e.preventDefault();
+            obj.click(function (e) {
+                e.stopPropagation();
+            });
+            obj.keydown(function (e) {
+                e.stopPropagation();
+                if (e.keyCode == 27) { // Escape
+                    e.preventDefault();
 
-                        Ω.focus();
-
-                    } else if (e.keyCode == 13 && e.ctrlKey) { // Ctrl + Enter
-                        e.preventDefault();
-
-                        selectSingle($(this).closest('li'));
-                        insertAfter();
-                        focusInSelection();
-
-                    } else if (e.keyCode == 46 && e.ctrlKey) { // Ctrl + Delete
-                        e.preventDefault();
-
-                        removeSelected();
-
-                    } else if (e.keyCode == 38 && e.ctrlKey) { // Ctrl + Up
-                        e.preventDefault();
-
-                        if (!obj.closest('li').is('.dcSelected,.dcSubSelect'))
-                            selectDisjoint(obj.closest('li'));
-                        moveUp();
-                        obj.focusEnd();
-
-                    } else if (e.keyCode == 40 && e.ctrlKey) { // Ctrl + Down
-                        e.preventDefault();
-
-                        if (!obj.closest('li').is('.dcSelected,.dcSubSelect'))
-                            selectDisjoint(obj.closest('li'));
-                        moveDown();
-                        obj.focusEnd();
-
-                    } else if (e.keyCode == 38 && e.shiftKey) { // Shift + Up
-                        e.preventDefault();
-
-                        if (list.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
-                            if (!list.find('.dcSelected,.dcSubSelect').is(':first-child')) {
-                                selectRange(list.find('.dcSelected,.dcSubSelect').first().prev());
-                            }
-                        } else {
-                            selectRange(list.find('.dcSelected,.dcSubSelect').last().prev());
-                        }
-
-                    } else if (e.keyCode == 40 && e.shiftKey) { // Shift + Down
-                        e.preventDefault();
-
-                        if (list.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
-                            if (!list.find('.dcSelected,.dcSubSelect').is(':last-child')) {
-                                selectRange(list.find('.dcSelected,.dcSubSelect').last().next());
-                            }
-                        } else {
-                            selectRange(list.find('.dcSelected,.dcSubSelect').first().next());
-                        }
-
-                    } else if (e.keyCode == 38) { // Up Arrow
-                        e.preventDefault();
-
-                        var row = obj.closest('li');
-                        var num = row.find('input[type="text"],textarea').index(obj);
-                        if (!row.is(':first-child'))
-                            row.prev().find('input[type="text"],textarea').eq(num).focusEnd();
-                        else
-                            list.find('li:last-child').find('input[type="text"],textarea').eq(num).focusEnd();
-
-                    } else if (e.keyCode == 40) { // Down Arrow
-                        e.preventDefault();
-
-                        var row = obj.closest('li');
-                        var num = row.find('input[type="text"],textarea').index(obj);
-                        if (!row.is(':last-child'))
-                            row.next().find('input[type="text"],textarea').eq(num).focusEnd();
-                        else
-                            list.find('li:first-child').find('input[type="text"],textarea').eq(num).focusEnd();
-
-                    } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
-                        e.preventDefault();
-
-                        var parent = $(this).parent();
-                        toggleInput(parent);
-                        parent.find('input[type="text"],textarea').first().focusEnd();
-
-                    } else if (e.keyCode == 83 && e.altKey) { // Alt + S
-                        e.preventDefault();
-
-                        selectDisjoint($(this).closest('li'));
-
-                    }
-                });
-                obj.focus(function (e) {
-                    Ω.addClass('dcFocus');
-                });
-                obj.blur(function (e) {
-                    Ω.removeClass('dcFocus');
-                });
-                obj.change(function (e) {
-                    Ω.change(e);
-                });
-            } else if (type == 'row') {
-                obj.click(function (e) {
-                    e.stopPropagation();
-                    Ω.parents().each(function () {
-                        $(this).attr('data-dcScroll', $(this).scrollTop());
-                    });
                     Ω.focus();
-                    Ω.parents().each(function () {
-                        $(this).scrollTop($(this).attr('data-dcScroll')).attr('data-dcScroll', '');
-                    });
-                    if (e.shiftKey) {
-                        selectRange(this);
-                    } else if (e.ctrlKey) {
-                        selectDisjoint(this);
-                    } else {
-                        selectSingle(this);
-                    }
-                });
-            } else if (type == 'toggle') {
-                obj.click(function (e) {
-                    e.stopPropagation();
-                    Ω.parents().each(function () {
-                        $(this).attr('data-dcScroll', $(this).scrollTop());
-                    });
-                    Ω.focus();
-                    Ω.parents().each(function () {
-                        $(this).scrollTop($(this).attr('data-dcScroll')).attr('data-dcScroll', '');
-                    });
-                    toggleInput(this);
-                });
-            }
-        }
 
-        Ω.click(function (e) {
-            clearSelection();
-        });
-
-        Ω.find('.dcControlWrapper').click(function (e) {
-            e.stopPropagation();
-        });
-
-        Ω.attr('tabindex', 1);
-
-        Ω.keydown(function (e) {
-            if (e.keyCode == 27) { // Escape
-                e.preventDefault();
-                clearSelection();
-            } else if (e.keyCode == 78) { // N
-                e.preventDefault();
-                if (!isDisjoint())
-                    insertAfter();
-            } else if (list.find('.dcSelected,.dcSubSelect').length > 0) {
-                if (e.keyCode == 69) { // E
+                } else if (e.keyCode == 13 && e.ctrlKey) { // Ctrl + Enter
                     e.preventDefault();
-                    focusInSelection();
-                } else if (e.keyCode == 84) { // A
-                    if (e.altKey) {
-                        e.preventDefault();
-                        list.find('.dcSelected,.dcSubSelect').each(function () {
-                            toggleInput(this);
-                        });
-                    }
-                } else if (e.keyCode == 46) { // Delete
-                    removeSelected();
-                } else if (e.keyCode == 38 || e.keyCode == 75) { // Up Arrow / K
+
+                    δ._selectSingle($(this).closest('tr'));
+                    δ.insert();
+                    δ._focusInSelection();
+
+                } else if (e.keyCode == 46 && e.ctrlKey) { // Ctrl + Delete
                     e.preventDefault();
-                    if (e.ctrlKey) {
-                        moveUp();
-                    } else if (e.shiftKey) {
-                        if (list.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
-                            if (!list.find('.dcSelected,.dcSubSelect').is(':first-child')) {
-                                selectRange(list.find('.dcSelected,.dcSubSelect').first().prev());
-                            }
-                        } else {
-                            selectRange(list.find('.dcSelected,.dcSubSelect').last().prev());
+
+                    δ.remove();
+
+                } else if (e.keyCode == 38 && e.ctrlKey) { // Ctrl + Up
+                    e.preventDefault();
+
+                    if (!obj.closest('tr').is('.dcSelected,.dcSubSelect'))
+                        δ._selectSingle(obj.closest('tr'));
+                    δ.moveUp();
+                    obj.focusEnd();
+
+                } else if (e.keyCode == 40 && e.ctrlKey) { // Ctrl + Down
+                    e.preventDefault();
+
+                    if (!obj.closest('tr').is('.dcSelected,.dcSubSelect'))
+                        δ._selectSingle(obj.closest('tr'));
+                    δ.moveDown();
+                    obj.focusEnd();
+
+                } else if (e.keyCode == 38 && e.shiftKey) { // Shift + Up
+                    e.preventDefault();
+
+                    if (table.find('.dcSelected').length == 0) {
+                        δ._deselectSub();
+                        δ._selectSingle(table.find('tr:last-child'));
+                    } else if (table.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
+                        if (!table.find('.dcSelected,.dcSubSelect').first().is(':first-child')) {
+                            δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().prev());
                         }
                     } else {
-                        clearSubSelect();
-                        if (list.find('.dcSelected').is(':first-child')) {
-                            selectSingle(list.find('li:last-child'));
-                        } else {
-                            selectSingle(list.find('.dcSelected').prev());
-                        }
+                        δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().prev());
                     }
-                } else if (e.keyCode == 40 || e.keyCode == 74) { // Down Arrow / J
+
+                } else if (e.keyCode == 40 && e.shiftKey) { // Shift + Down
                     e.preventDefault();
-                    if (e.ctrlKey) {
-                        moveDown();
-                    } else if (e.shiftKey) {
-                        if (list.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
-                            if (!list.find('.dcSelected,.dcSubSelect').is(':last-child')) {
-                                selectRange(list.find('.dcSelected,.dcSubSelect').last().next());
-                            }
-                        } else {
-                            selectRange(list.find('.dcSelected,.dcSubSelect').first().next());
+
+                    if (table.find('.dcSelected').length == 0) {
+                        δ._deselectSub();
+                        δ._selectSingle(table.find('tr:first-child'));
+                    } else if (table.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
+                        if (!table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
+                            δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().next());
                         }
                     } else {
-                        clearSubSelect();
-                        if (list.find('.dcSelected').is(':last-child')) {
-                            selectSingle(list.find('li:first-child'));
-                        } else {
-                            selectSingle(list.find('.dcSelected').next());
-                        }
-                    }
-                }
-            } else if (e.keyCode == 38 || e.keyCode == 75) { // Up Arrow / K
-                e.preventDefault();
-                selectSingle(list.find('li:last-child'));
-            } else if (e.keyCode == 40 || e.keyCode == 74) { // Down Arrow / J
-                e.preventDefault();
-                selectSingle(list.find('li:first-child'));
-            }
-        });
-
-        if ($.ui && $.fn.sortable) {
-            list.sortable({
-                axis: 'y',
-                helper: function (e, item) {
-                    if (!item.is('.dcSelected,.dcSubSelect')) {
-                        selectSingle(item);
+                        δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().next());
                     }
 
-                    var elems = list.find('.dcSelected,.dcSubSelect').clone();
-                    item.data('multidrag', elems).siblings('.dcSelected,.dcSubSelect').remove();
-                    var helper = $('<li />');
-                    return helper.append(elems);
-                },
-                stop: function (e, ui) {
-                    var elems = ui.item.data('multidrag');
-                    elems.each(function () {
-                        registerEvents('row', this);
-                        registerEvents('control', $(this).find('input[type="text"],textarea'));
-                        registerEvents('toggle', $(this).find('.dcToggle'));
-                    });
-                    ui.item.after(elems).remove();
-                    selectSingle(elems.first());
-                    selectRange(elems.last());
-                    Ω.change();
+                } else if (e.keyCode == 38) { // Up Arrow
+                    e.preventDefault();
+
+                    var row = obj.closest('tr');
+                    var num = row.find('input[type="text"],textarea').index(obj);
+                    if (!row.is(':first-child'))
+                        row.prev().find('input[type="text"],textarea').eq(num).focusEnd();
+                    else
+                        table.find('tr:last-child').find('input[type="text"],textarea').eq(num).focusEnd();
+
+                } else if (e.keyCode == 40) { // Down Arrow
+                    e.preventDefault();
+
+                    var row = obj.closest('tr');
+                    var num = row.find('input[type="text"],textarea').index(obj);
+                    if (!row.is(':last-child'))
+                        row.next().find('input[type="text"],textarea').eq(num).focusEnd();
+                    else
+                        table.find('tr:first-child').find('input[type="text"],textarea').eq(num).focusEnd();
+
+                } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                    e.preventDefault();
+
+                    var parent = $(this).parent();
+                    δ._toggleInput(parent);
+                    parent.find('input[type="text"],textarea').first().focusEnd();
+
+                } else if (e.keyCode == 83 && e.altKey) { // Alt + S
+                    e.preventDefault();
+
+                    δ._selectDisjoint($(this).closest('tr'));
+
+                } else if ((e.keyCode == 188 || e.keyCode == 37) && e.ctrlKey) { // Ctrl + < / Left Arrow
+                    e.preventDefault();
+
+                    if (!obj.closest('td').is(':first-child'))
+                        obj.closest('td').prev().find('input[type="text"],textarea').first().focusEnd();
+
+                } else if ((e.keyCode == 190 || e.keyCode == 39) && e.ctrlKey) { // Ctrl + > / Right Arrow
+                    e.preventDefault();
+
+                    if (!obj.closest('td').is(':last-child'))
+                        obj.closest('td').next().find('input[type="text"],textarea').first().focusEnd();
+
                 }
             });
-        }
+            obj.focus(function (e) {
+                Ω.addClass('dcFocus');
+            });
+            obj.blur(function (e) {
+                Ω.removeClass('dcFocus');
+            });
+            obj.change(function (e) {
+                Ω.change(e);
+                δ._updateData();
+            });
 
-        return Ω;
-    }
+            return δ;
+        },
 
-    //#endregion
+        _registerRowEvents: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
 
-    //#region DynamicTable
+            obj = $(obj);
 
-    $.fn.dynamicTable = function (args) {
-        var Ω = this;
-        if (Ω.css('display') !== 'block')
-            throw new Error('Invalid container for dynamicTable.');
+            obj.click(function (e) {
+                e.stopPropagation();
+                Ω.focus();
 
-        args = args || {};
+                if (e.shiftKey)
+                    δ._selectRange($(this));
+                else if (e.ctrlKey)
+                    δ._selectDisjoint($(this));
+                else
+                    δ._selectSingle($(this));
+            });
 
-        var i, j;
+            return δ;
+        },
 
-        var defaultData = args.defaultData || 'Enter Data Here.';
-        var data = args.data || [].repeat([].repeat(defaultData, 2), 2);
+        _registerToggleEvents: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
 
-        function isArray(obj) {
-            return Object.prototype.toString.call(obj) === '[object Array]';
-        }
+            obj.click(function (e) {
+                e.stopPropagation();
+                Ω.focus();
 
-        function isDataDoubleArray() {
-            if (!isArray(data)) return false;
+                δ._toggleInput(this);
+            });
 
-            var flag = true;
-            for (var i = 0; i < rows() ; i++) {
-                if (!isArray(data[i])) return false;
-            }
+            return δ;
+        },
 
-            return true;
-        }
+        _generateTable: function () {
+            var Ω = $(this.container),
+                δ = this;
 
-        if (!isDataDoubleArray())
-            throw new Error('Invalid data for dynamicTable.');
+            var wrapper = $(document.createElement('div')).addClass('dcObjWrapper').appendTo(Ω);
+            var table = $(document.createElement('table')).addClass('dcTable').appendTo(wrapper);
 
-        function rows() {
-            return data.length;
-        }
+            for (i = 0; i < δ.data.length ; i++) {
+                var tr = $(document.createElement('tr')).appendTo(table);
 
-        function cols() {
-            var max = 0;
-            for (var i = 0; i < rows() ; i++) {
-                max = Math.max(data[i].length, max);
-            }
-            return max;
-        }
+                for (j = 0; j < δ.data[0].length ; j++) {
+                    var td = $(document.createElement('td')).appendTo(tr);
+                    var tdWrapper = $(document.createElement('div')).appendTo(td);
+                    var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(tdWrapper);
+                    δ._registerToggleEvents(toggle);
 
-        function normalizeData() {
-            for (var i = 0; i < rows() ; i++) {
-                if (!isArray(data[i])) {
-                    data[i] = [].repeat(defaultData, cols());
-                } else if (data[i].length != cols()) {
-                    for (var j = data[i].length; j < cols() ; j++) {
-                        data[i].push(defaultData);
+                    if (δ.data[i][j].toString().length < 50) {
+                        var input = $(document.createElement('input')).attr('type', 'text').appendTo(tdWrapper);
+                        input.val(δ.data[i][j]);
+                        input.attr('placeholder', δ.options.placeholder);
+                        δ._registerInputEvents(input);
+
+                    } else {
+                        var textarea = $(document.createElement('textarea')).appendTo(tdWrapper);
+                        textarea.val(δ.data[i][j]);
+                        textarea.attr('placeholder', δ.options.placeholder);
+                        textarea.attr('rows', 5);
+                        δ._registerInputEvents(textarea);
+
                     }
                 }
-            }
-        }
 
-        normalizeData();
-        Ω.contents().remove();
-        var id = 0;
-        $('[data-dcid]').each(function () {
-            id = Math.max(parseInt($(this).attr('data-dcid')), id);
-        });
-        Ω.attr('data-dcid', ++id);
-        var containSelect = '[data-dcid="' + id + '"]';
+                δ._registerRowEvents(tr);
 
-        var wrapper = $(document.createElement('div')).css({ height: '100%', width: '100%', margin: 0, padding: 0 }).appendTo(Ω);
-        var table = $(document.createElement('table')).addClass('dcTable').appendTo(wrapper);
-
-        for (i = 0; i < rows() ; i++) {
-            var tr = $(document.createElement('tr')).appendTo(table);
-
-            for (j = 0; j < cols() ; j++) {
-                var td = $(document.createElement('td')).appendTo(tr);
-                var tdWrapper = $(document.createElement('div')).appendTo(td);
-                var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(tdWrapper);
-                registerEvents('toggle', toggle);
-
-                if (data[i][j].toString().length < 50) {
-                    var input = $(document.createElement('input')).attr('type', 'text').appendTo(tdWrapper);
-                    input.val(data[i][j]);
-                    input.attr('placeholder', data[i][j]);
-                    registerEvents('control', input);
-                } else {
-                    var textarea = $(document.createElement('textarea')).appendTo(tdWrapper);
-                    textarea.val(data[i][j]);
-                    textarea.attr('placeholder', data[i][j]);
-                    textarea.attr('rows', 5);
-                    registerEvents('control', textarea);
-                }
-            }
-
-            registerEvents('row', tr);
-        }
-
-        var controlWrapper = $(document.createElement('div')).addClass('dcControlWrapper').appendTo(wrapper);
-        var controlPanel = $(document.createElement('div')).addClass('dcControlPanel').appendTo(controlWrapper);
-        var controlList = $(document.createElement('ul')).appendTo(controlPanel);
-
-        var control_select = $(document.createElement('li')).addClass('dcIconSelect').text('Select All').click(selectAll).appendTo(controlList);
-        var control_deselect = $(document.createElement('li')).addClass('dcIconDeselect').text('Deselect All').click(clearSelection).appendTo(controlList);
-        var control_moveUp = $(document.createElement('li')).addClass('dcIconMoveUp').text('Move Up').click(function (e) {
-            if (!$(this).hasClass('dcDisabled'))
-                moveUp();
-        }).appendTo(controlList);
-        var control_moveDown = $(document.createElement('li')).addClass('dcIconMoveDown').text('Move Down').click(function (e) {
-            if (!$(this).hasClass('dcDisabled'))
-                moveDown();
-        }).appendTo(controlList);
-        var control_insertAfter = $(document.createElement('li')).addClass('dcIconInsert').text('Insert After').click(function (e) {
-            if (!$(this).hasClass('dcDisabled')) {
-                insertAfter();
-                focusInSelection();
-            }
-        }).appendTo(controlList);
-        var control_remove = $(document.createElement('li')).addClass('dcIconRemove').click(removeSelected).appendTo(controlList);
-        control_remove.append('<span>Remove</span>');
-
-        Ω.setDefaultData = function (newDefault) {
-            if (typeof newDefault === 'string')
-                defaultData = newDefault;
-            else if (newDefault.toString)
-                defaultData = newDefault.toString;
-            else if (newDefault === undefined)
-                defaultData = '';
-        };
-
-        function disableControls() {
-            //control_insertBefore.addClass('dcDisabled');
-            control_insertAfter.addClass('dcDisabled');
-        }
-
-        function enableControls() {
-            //control_insertBefore.removeClass('dcDisabled');
-            control_insertAfter.removeClass('dcDisabled');
-        }
-
-        function isDisjoint() {
-            return control_insertAfter.hasClass('dcDisabled');
-        }
-
-        Ω.selectSingle = selectSingle;
-        function selectSingle(obj) {
-            obj = $(obj);
-            if (obj.prop('tagName') == 'TD')
-                obj = obj.parent();
-
-            clearSelection();
-            obj.addClass('dcSelected');
-
-            enableControls();
-        }
-
-        Ω.selectRange = selectRange;
-        function selectRange(obj) {
-            obj = $(obj);
-            if (obj.prop('tagName') == 'TD')
-                obj = obj.parent();
-
-            if (obj.hasClass('dcSelected')) {
-                clearSubSelect();
-            } else if (table.find('.dcSelected').length != 1) {
-                selectSingle(obj);
-            } else {
-                clearSubSelect();
-
-                obj.addClass('dcSubSelect');
-                var after = obj.nextAll('.dcSelected').length == 1;
-                var rows = after ? obj.nextAll('tr') : obj.prevAll('tr');
-                for (var i = 0; i < rows.length; i++) {
-                    if (rows.eq(i).hasClass('dcSelected')) return;
-                    rows.eq(i).addClass('dcSubSelect');
-                }
-            }
-
-            enableControls();
-        }
-
-        Ω.selectDisjoint = selectDisjoint;
-        function selectDisjoint(obj) {
-            obj = $(obj);
-            if (obj.prop('tagName') == 'TD')
-                obj = obj.parent();
-
-            if (table.find('.dcSelected,.dcSubSelect').length > 0) {
-                disableControls();
-
-                if (obj.is('.dcSelected,.dcSubSelect')) {
-                    obj.removeClass('dcSelected').removeClass('dcSubSelect');
-                } else {
-                    obj.addClass('dcSubSelect');
-                }
-            } else {
-                selectSingle(obj);
-            }
-        }
-
-        Ω.selectAll = selectAll;
-        function selectAll() {
-            selectSingle(table.find('tr:first-child'));
-            selectRange(table.find('tr:last-child'));
-
-            enableControls();
-        }
-
-        Ω.clearSelection = clearSelection;
-        function clearSelection() {
-            table.find('.dcSelected').removeClass('dcSelected');
-            table.find('.dcSubSelect').removeClass('dcSubSelect');
-
-            enableControls();
-        }
-
-        Ω.clearSubSelect = clearSubSelect;
-        function clearSubSelect() {
-            table.find('.dcSubSelect').removeClass('dcSubSelect');
-
-            enableControls();
-        }
-
-        Ω.moveUp = moveUp;
-        function moveUp() {
-            if (table.find('.dcSelected,.dcSubSelect').length > 0 &&
-                !table.find('.dcSelected,.dcSubSelect').is(':first-child')) {
-                table.find('.dcSelected,.dcSubSelect').each(function () {
-                    $(this).insertBefore($(this).prev());
+                Ω.unbind('keydown');
+                Ω.keydown(function (e) {
+                    if (e.keyCode == 27) { // Escape
+                        e.preventDefault();
+                        if (table.find('.dcSelected,.dcSubSelect').length > 0)
+                            δ.deselectAll();
+                        else
+                            Ω.blur();
+                    } else if (e.keyCode == 78) { // N
+                        e.preventDefault();
+                        if (!δ._isDisjoint())
+                            δ.insert();
+                    } else if (e.keyCode == 69) { // E
+                        e.preventDefault();
+                        δ._focusInSelection();
+                    } else if (e.keyCode == 9) { // Tab
+                        e.preventDefault();
+                        δ._focusInSelection();
+                    } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                        e.preventDefault();
+                        table.find('.dcSelected > td,.dcSubSelect > td').each(function () {
+                            δ._toggleInput(this);
+                        });
+                    } else if (e.keyCode == 46) { // Delete
+                        e.preventDefault();
+                        δ.remove();
+                    } else if (e.keyCode == 38 || e.keyCode == 74) { // Up Arrow / J
+                        if (table.find('.dcSelected,.dcSubSelect').length > 0) {
+                            e.preventDefault();
+                            if (e.ctrlKey) { // + Ctrl
+                                δ.moveUp();
+                            } else if (e.shiftKey) { // + Shift
+                                if (table.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
+                                    if (!table.find('.dcSelected,.dcSubSelect').is(':first-child')) {
+                                        δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().prev());
+                                    }
+                                } else {
+                                    δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().prev());
+                                }
+                            } else {
+                                δ._deselectSub();
+                                if (table.find('.dcSelected').is(':first-child')) {
+                                    δ._selectSingle(table.find('tr:last-child'));
+                                } else {
+                                    δ._selectSingle(table.find('.dcSelected').prev());
+                                }
+                            }
+                        } else {
+                            e.preventDefault();
+                            δ._selectSingle(table.find('tr:last-child'));
+                        }
+                    } else if (e.keyCode == 40 || e.keyCode == 75) { // Down Arrow / K
+                        e.preventDefault();
+                        if (table.find('.dcSelected,.dcSubSelect').length > 0) {
+                            if (e.ctrlKey) { // + Ctrl
+                                δ.moveDown();
+                            } else if (e.shiftKey) { // + Shift
+                                if (table.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
+                                    if (!table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
+                                        δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().next());
+                                    }
+                                } else {
+                                    δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().next());
+                                }
+                            } else {
+                                δ._deselectSub();
+                                if (table.find('.dcSelected').is(':last-child')) {
+                                    δ._selectSingle(table.find('tr:first-child'));
+                                } else {
+                                    δ._selectSingle(table.find('.dcSelected').next());
+                                }
+                            }
+                        } else {
+                            δ._selectSingle(table.find('tr:first-child'));
+                        }
+                    }
+                    δ._updateData();
                 });
-                Ω.change();
-            }
-        }
 
-        Ω.moveDown = moveDown;
-        function moveDown() {
-            if (table.find('.dcSelected,.dcSubSelect').length > 0 &&
-                !table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
-                $(table.find('.dcSelected,.dcSubSelect').get().reverse()).each(function () {
-                    $(this).insertAfter($(this).next());
-                });
-                Ω.change();
-            }
-        }
+                if (δ.options.draggable && $.ui && $.fn.sortable) {
+                    table.find('tbody').sortable({
+                        axis: 'y',
+                        helper: function (e, item) {
+                            item.children().each(function () {
+                                $(this).width($(this).width());
+                            });
 
-        Ω.insertAfter = insertAfter;
-        function insertAfter() {
-            var height = Ω.height();
+                            if (!item.is('.dcSelected,.dcSubSelect')) {
+                                δ._selectSingle(item);
+                            }
 
-            var tr = $(document.createElement('tr'));
-
-            for (j = 0; j < cols() ; j++) {
-                var td = $(document.createElement('td')).appendTo(tr);
-                var tdWrapper = $(document.createElement('div')).appendTo(td);
-                var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(tdWrapper);
-                registerEvents('toggle', toggle);
-
-                var input = $(document.createElement('input')).attr('type', 'text').appendTo(tdWrapper);
-                input.val(defaultData);
-                input.attr('placeholder', defaultData);
-                registerEvents('control', input);
-            }
-
-            if (table.find('tr').length == 0) {
-                table.append(tr);
-            } else if (table.find('.dcSelected').length == 1) {
-                if (table.find('.dcSubSelect').length > 0) {
-                    table.find('.dcSelected,.dcSubSelect').last().after(tr);
-                } else {
-                    table.find('.dcSelected').after(tr);
+                            var elems = table.find('.dcSelected,.dcSubSelect').clone();
+                            item.data('multidrag', elems).siblings('.dcSelected,.dcSubSelect').remove();
+                            var helper = $('<tr />');
+                            return helper.append(elems);
+                        },
+                        stop: function (e, ui) {
+                            var elems = ui.item.data('multidrag');
+                            elems.each(function () {
+                                δ._registerRowEvents($(this));
+                                δ._registerInputEvents($(this).find('input[type="text"],textarea'));
+                                δ._registerToggleEvents($(this).find('.dcToggle'));
+                            });
+                            ui.item.after(elems).remove();
+                            δ._selectSingle(elems.first());
+                            if (elems.length > 1)
+                                δ._selectRange(elems.last());
+                            table.find('tr').hide().show(0);  // Redraw to fix borders
+                            Ω.change();
+                            δ._updateData();
+                        }
+                    });
                 }
-            } else {
-                table.find('tr:last-child').after(tr);
             }
 
-            registerEvents('row', tr);
+            var controlWrapper = $(document.createElement('div')).addClass('dcControlWrapper').appendTo(wrapper);
+            var controlPanel = $(document.createElement('div')).addClass('dcControlPanel').appendTo(controlWrapper);
+            var controlList = $(document.createElement('ul')).appendTo(controlPanel);
 
-            selectSingle(tr);
-            Ω.change();
+            var control_select = $(document.createElement('li')).text('Select All').click(function (e) {
+                e.stopPropagation();
+                δ.selectAll();
+            }).appendTo(controlList);
 
-            if (Ω.height() != height)
-                Ω.resize();
-        }
+            var control_deselect = $(document.createElement('li')).text('Deselect All').click(function (e) {
+                e.stopPropagation();
+                δ.deselectAll();
+            }).appendTo(controlList);
 
-        Ω.insertBefore = insertBefore;
-        function insertBefore() {
-            var height = Ω.height();
+            var control_moveUp = $(document.createElement('li')).text('Move Up').addClass('dcMove dcDisabled').click(function (e) {
+                e.stopPropagation();
+                if (!$(this).hasClass('dcDisabled'))
+                    δ.moveUp();
+            }).appendTo(controlList);
 
-            var tr = $(document.createElement('tr'));
+            var control_moveDown = $(document.createElement('li')).text('Move Down').addClass('dcMove dcDisabled').click(function (e) {
+                e.stopPropagation();
+                if (!$(this).hasClass('dcDisabled'))
+                    δ.moveDown();
+            }).appendTo(controlList);
 
-            for (j = 0; j < cols() ; j++) {
-                var td = $(document.createElement('td')).appendTo(tr);
-                var tdWrapper = $(document.createElement('div')).appendTo(td);
-                var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(tdWrapper);
-                registerEvents('toggle', toggle);
-
-                var input = $(document.createElement('input')).attr('type', 'text').appendTo(tdWrapper);
-                input.val(defaultData);
-                input.attr('placeholder', defaultData);
-                registerEvents('control', input);
-            }
-
-            if (table.find('tr').length == 0) {
-                table.append(tr);
-            } else if (table.find('.dcSelected').length == 1) {
-                if (table.find('.dcSubSelect').length > 0) {
-                    table.find('.dcSelected,.dcSubSelect').first().before(tr);
-                } else {
-                    table.find('.dcSelected').before(tr);
+            var control_insert = $(document.createElement('li')).text('Insert').addClass('dcInsert').click(function (e) {
+                e.stopPropagation();
+                if (!$(this).hasClass('dcDisabled')) {
+                    δ.insert();
+                    δ._focusInSelection();
                 }
-            } else {
-                table.find('tr:first-child').before(tr);
+            }).appendTo(controlList);
+
+            var control_remove = $(document.createElement('li')).text('Remove').addClass('dcRemove dcDisabled').click(function (e) {
+                e.stopPropagation();
+                δ.remove()
+            }).appendTo(controlList);
+
+            return δ;
+        },
+
+        _updateData: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var table = Ω.find('.dcTable');
+            var newData = [];
+            for (var i = 0; i < table.find('tr').length; i++) {
+                var row = [];
+                for (var j = 0; j < table.find('tr:first').find('td').length; j++) {
+                    row.push(table.find('tr').eq(i).find('td').eq(j).find('input[type="text"],textarea').val());
+                }
+                newData.push(row);
             }
+            δ.data = newData;
 
-            registerEvents('row', tr);
+            return δ;
+        },
 
-            selectSingle(tr);
-            Ω.change();
+        _enableInsert: function () {
+            var Ω = $(this.container),
+                δ = this;
 
-            if (Ω.height() != height)
-                Ω.resize();
-        }
+            Ω.find('.dcInsert').removeClass('dcDisabled');
 
-        Ω.removeSelected = removeSelected;
-        function removeSelected() {
-            if (table.find('.dcSelected,.dcSubSelect').length > 0 && confirm('Are you sure you wish to delete the selected rows?')) {
-                var height = Ω.height();
+            return δ;
+        },
 
-                table.find('.dcSelected,.dcSubSelect').remove();
-                if (table.find('tr').length == 0)
-                    insertAfter();
+        _disableInsert: function () {
+            var Ω = $(this.container),
+                δ = this;
 
-                enableControls();
-                Ω.change();
+            Ω.find('.dcInsert').addClass('dcDisabled');
 
-                if (Ω.height() != height)
-                    Ω.resize();
-            }
+            return δ;
+        },
 
-            Ω.focus();
-        }
+        _enableMove: function () {
+            var Ω = $(this.container),
+                δ = this;
 
-        function toggleInput(obj) {
+            Ω.find('.dcMove').removeClass('dcDisabled');
+
+            return δ;
+        },
+
+        _disableMove: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcMove').addClass('dcDisabled');
+
+            return δ;
+        },
+
+        _enableRemove: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcRemove').removeClass('dcDisabled');
+
+            return δ;
+        },
+
+        _disableRemove: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcRemove').addClass('dcDisabled');
+
+            return δ;
+        },
+
+        _focusInSelection: function (row, item) {
+            var Ω = $(this.container),
+                δ = this;
+
+            if (Ω.find('.dcTable').find('.dcSelected,.dcSubSelect').length == 0)
+                Ω.find('.dcTable').find('tr').first().find('input[type="text"],textarea').focusEnd();
+
+            row = row || 0;
+            item = item || 0;
+            Ω.find('.dcTable').find('.dcSelected,.dcSubSelect').eq(row).find('input[type="text"],textarea').eq(item).focusEnd();
+
+            return δ;
+        },
+
+        _toggleInput: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
             obj = $(obj);
             if (obj.prop('tagName') == 'DIV')
                 obj = obj.closest('td');
@@ -1011,7 +654,7 @@
                 newControl.attr('placeholder', placeholder);
                 newControl.attr('rows', 5);
                 control.remove();
-                registerEvents('control', newControl);
+                δ._registerInputEvents(newControl);
             } else {
                 var text = control.val();
                 var placeholder = control.attr('placeholder');
@@ -1019,305 +662,1381 @@
                 newControl.val(text);
                 newControl.attr('placeholder', placeholder);
                 control.remove();
-                registerEvents('control', newControl);
+                δ._registerInputEvents(newControl);
             }
 
             if (Ω.height() != height)
                 Ω.resize();
-        }
 
-        Ω.focusInSelection = focusInSelection;
-        function focusInSelection(row, item) {
-            row = row || 0;
-            item = item || 0;
-            table.find('.dcSelected,.dcSubSelect').eq(row).find('input[type="text"],textarea').eq(item).focusEnd();
-        }
+            return δ;
+        },
 
-        Ω.getData = getData;
-        function getData() {
-            var data = [];
-            for (var i = 0; i < table.find('tr').length; i++) {
-                var row = [];
-                for (var j = 0; j < table.find('tr:first').find('td').length; j++) {
-                    row.push(table.find('tr').eq(i).find('td').eq(j).find('input[type="text"],textarea').val());
+        _selectSingle: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ.deselectAll();
+
+            δ._enableInsert();
+            δ._enableMove();
+            δ._enableRemove();
+
+            obj = $(obj);
+            if (obj.prop('tagName') == 'TD')
+                obj = obj.parent();
+
+            obj.addClass('dcSelected');
+
+            return δ;
+        },
+
+        _selectRange: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ._enableInsert();
+            δ._enableMove();
+            δ._enableRemove();
+
+            obj = $(obj);
+            if (obj.prop('tagName') == 'TD')
+                obj = obj.parent();
+
+            if (obj.hasClass('dcSelected')) {
+                if (Ω.find('.dcTable').find('.dcSubSelect').length > 0)
+                    δ._deselectSub();
+                else
+                    δ.deselectAll();
+            } else if (Ω.find('.dcTable').find('.dcSelected').length == 0) {
+                δ._selectSingle(obj);
+            } else {
+                δ._deselectSub();
+
+                obj.addClass('dcSubSelect');
+                var after = obj.nextAll('.dcSelected').length == 1;
+                var rows = after ? obj.nextAll('tr') : obj.prevAll('tr');
+                for (var i = 0; i < rows.length; i++) {
+                    if (rows.eq(i).hasClass('dcSelected')) return;
+                    rows.eq(i).addClass('dcSubSelect');
                 }
-                data.push(row);
             }
-            return data;
-        }
 
-        function registerEvents(type, obj) {
+            return δ;
+        },
+
+        _selectDisjoint: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ._disableInsert();
+            δ._enableMove();
+            δ._enableRemove();
+
+            obj = $(obj);
+            if (obj.prop('tagName') == 'TD')
+                obj = obj.parent();
+
+            if (Ω.find('.dcTable').find('.dcSelected,.dcSubSelect').length > 0) {
+                if (obj.is('.dcSelected,.dcSubSelect')) {
+                    obj.removeClass('dcSelected').removeClass('dcSubSelect');
+                } else {
+                    obj.addClass('dcSubSelect');
+                }
+            } else {
+                δ._selectSingle(obj);
+            }
+
+            return δ;
+        },
+
+        _deselect: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcTable').find('tr').removeClass('dcSelected');
+
+            if (Ω.find('.dcTable').find('.dcSelected,.dcSubSelect').length == 0) {
+                δ._disableMove();
+                δ._disableRemove();
+            }
+
+            return δ;
+        },
+
+        _deselectSub: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcTable').find('tr').removeClass('dcSubSelect');
+
+            if (Ω.find('.dcTable').find('.dcSelected,.dcSubSelect').length == 0) {
+                δ._disableMove();
+                δ._disableRemove();
+            }
+
+            return δ;
+        },
+
+        'selectAll': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ._selectSingle(Ω.find('.dcTable').find('tr:first-child'));
+
+            if (Ω.find('.dcTable').find('tr').length > 1)
+                δ._selectRange(Ω.find('.dcTable').find('tr:last-child'));
+
+            δ._enableInsert();
+
+            return δ;
+        },
+
+        'deselectAll': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ._deselect();
+            δ._deselectSub();
+
+            δ._enableInsert();
+
+            return δ;
+        },
+
+        'getData': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            return δ.data;
+        },
+
+        'moveUp': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var table = Ω.find('.dcTable');
+            if (table.find('.dcSelected,.dcSubSelect').length > 0 &&
+                !table.find('.dcSelected,.dcSubSelect').is(':first-child')) {
+                table.find('.dcSelected,.dcSubSelect').each(function () {
+                    $(this).insertBefore($(this).prev());
+                });
+                Ω.change();
+            }
+
+            δ._updateData();
+
+            return δ;
+        },
+
+        'moveDown': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var table = Ω.find('.dcTable');
+            if (table.find('.dcSelected,.dcSubSelect').length > 0 &&
+                !table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
+                $(table.find('.dcSelected,.dcSubSelect').get().reverse()).each(function () {
+                    $(this).insertAfter($(this).next());
+                });
+                Ω.change();
+            }
+
+            δ._updateData();
+
+            return δ;
+        },
+
+        'insert': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var height = Ω.height();
+
+            var tr = $(document.createElement('tr'));
+
+            for (j = 0; j < δ.data[0].length ; j++) {
+                var td = $(document.createElement('td')).appendTo(tr);
+                var tdWrapper = $(document.createElement('div')).appendTo(td);
+                var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(tdWrapper);
+                δ._registerToggleEvents(toggle);
+
+                var input = $(document.createElement('input')).attr('type', 'text').appendTo(tdWrapper);
+                input.val(δ.options.defaulttext);
+                input.attr('placeholder', δ.options.placeholder);
+                δ._registerInputEvents(input);
+            }
+
+            var table = Ω.find('.dcTable');
+            if (table.find('tr').length == 0) {
+                table.append(tr);
+            } else if (table.find('.dcSelected').length == 1) {
+                if (table.find('.dcSubSelect').length > 0)
+                    table.find('.dcSelected,.dcSubSelect').last().after(tr);
+                else
+                    table.find('.dcSelected').after(tr);
+            } else {
+                table.find('tr:last-child').after(tr);
+            }
+
+            δ._registerRowEvents(tr);
+
+            δ._selectSingle(tr);
+            Ω.change();
+
+            if (Ω.height() != height)
+                Ω.resize();
+
+            δ._updateData();
+
+            return δ;
+        },
+
+        'remove': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var table = Ω.find('.dcTable');
+            if (table.find('.dcSelected,.dcSubSelect').length > 0 && confirm('Are you sure you wish to delete the selected rows?')) {
+                var height = Ω.height();
+
+                table.find('.dcSelected,.dcSubSelect').remove();
+                if (table.find('tr').length == 0) {
+                    δ.insert();
+                } else {
+                    δ._enableInsert();
+                    δ._disableMove();
+                    δ._disableRemove();
+                }
+
+                Ω.change();
+
+                if (Ω.height() != height)
+                    Ω.resize();
+            }
+
+            Ω.focus();
+
+            δ._updateData();
+
+            return δ;
+        },
+
+        'reset': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ.destroy();
+            δ._init();
+
+            return δ;
+        },
+
+        'destroy': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ.data = δ.options.initial; // For reset.
+            Ω.removeClass('dcContainer').removeAttr('tabindex');
+            Ω.contents().remove();
+            Ω.removeData('dynamictable');
+
+            Ω.append(δ.original);
+
+            return Ω[0];
+        }
+    };
+
+    $dc.list = function (container, options) {
+        var δ = this,
+            Ω = $(container);
+
+        δ.container = Ω;
+        δ.original = Ω.contents().clone();
+        δ.options = options;
+        δ.data = options.initial;
+    };
+
+    $dc.list.prototype = {
+        _init: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.contents().remove();
+
+            if (δ.data === null)
+                δ.data = [].repeat(δ.options.defaulttext, δ.options.rows);
+
+            δ._generateList();
+
+            Ω.addClass('dcContainer');
+            Ω.attr('tabindex', 1);
+
+            Ω.click(function (e) {
+                δ.deselectAll();
+            });
+
+            Ω.find('.dcControlWrapper').click(function (e) {
+                e.stopPropagation();
+            });
+
+            return δ;
+        },
+
+        _isDisjoint: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            return Ω.find('li.dcSubSelect').length > 0;
+        },
+
+        _registerInputEvents: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            var list = Ω.find('.dcList');
             obj = $(obj);
 
-            if (type == 'control') {
-                obj.click(function (e) {
-                    e.stopPropagation();
-                });
-                obj.keydown(function (e) {
-                    e.stopPropagation();
-                    if (e.keyCode == 27) { // Escape
-                        e.preventDefault();
+            obj.click(function (e) {
+                e.stopPropagation();
+            });
+            obj.keydown(function (e) {
+                e.stopPropagation();
+                if (e.keyCode == 27) { // Escape
+                    e.preventDefault();
 
-                        Ω.focus();
-
-                    } else if (e.keyCode == 13 && e.ctrlKey) { // Ctrl + Enter
-                        e.preventDefault();
-
-                        selectSingle($(this).closest('tr'));
-                        insertAfter();
-                        focusInSelection();
-
-                    } else if (e.keyCode == 46 && e.ctrlKey) { // Ctrl + Delete
-                        e.preventDefault();
-
-                        removeSelected();
-
-                    } else if (e.keyCode == 38 && e.ctrlKey) { // Ctrl + Up
-                        e.preventDefault();
-
-                        if (!obj.closest('tr').is('.dcSelected,.dcSubSelect'))
-                            selectDisjoint(obj.closest('tr'));
-                        moveUp();
-                        obj.focusEnd();
-
-                    } else if (e.keyCode == 40 && e.ctrlKey) { // Ctrl + Down
-                        e.preventDefault();
-
-                        if (!obj.closest('tr').is('.dcSelected,.dcSubSelect'))
-                            selectDisjoint(obj.closest('tr'));
-                        moveDown();
-                        obj.focusEnd();
-
-                    } else if (e.keyCode == 38 && e.shiftKey) { // Shift + Up
-                        e.preventDefault();
-
-                        if (table.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
-                            if (!table.find('.dcSelected,.dcSubSelect').is(':first-child')) {
-                                selectRange(table.find('.dcSelected,.dcSubSelect').first().prev());
-                            }
-                        } else {
-                            selectRange(table.find('.dcSelected,.dcSubSelect').last().prev());
-                        }
-
-                    } else if (e.keyCode == 40 && e.shiftKey) { // Shift + Down
-                        e.preventDefault();
-
-                        if (table.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
-                            if (!table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
-                                selectRange(table.find('.dcSelected,.dcSubSelect').last().next());
-                            }
-                        } else {
-                            selectRange(table.find('.dcSelected,.dcSubSelect').first().next());
-                        }
-
-                    } else if (e.keyCode == 38) { // Up Arrow
-                        e.preventDefault();
-
-                        var row = obj.closest('tr');
-                        var num = row.find('input[type="text"],textarea').index(obj);
-                        if (!row.is(':first-child'))
-                            row.prev().find('input[type="text"],textarea').eq(num).focusEnd();
-                        else
-                            table.find('tr:last-child').find('input[type="text"],textarea').eq(num).focusEnd();
-
-                    } else if (e.keyCode == 40) { // Down Arrow
-                        e.preventDefault();
-
-                        var row = obj.closest('tr');
-                        var num = row.find('input[type="text"],textarea').index(obj);
-                        if (!row.is(':last-child'))
-                            row.next().find('input[type="text"],textarea').eq(num).focusEnd();
-                        else
-                            table.find('tr:first-child').find('input[type="text"],textarea').eq(num).focusEnd();
-
-                    } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
-                        e.preventDefault();
-
-                        var parent = $(this).parent();
-                        toggleInput(parent);
-                        parent.find('input[type="text"],textarea').first().focusEnd();
-
-                    } else if (e.keyCode == 83 && e.altKey) { // Alt + S
-                        e.preventDefault();
-
-                        selectDisjoint($(this).closest('tr'));
-
-                    } else if ((e.keyCode == 188) && e.ctrlKey) { // Alt + <
-                        e.preventDefault();
-
-                        if (!obj.closest('td').is(':first-child'))
-                            obj.closest('td').prev().find('input[type="text"],textarea').first().focusEnd();
-
-                    } else if ((e.keyCode == 190) && e.ctrlKey) { // Alt + >
-                        e.preventDefault();
-
-                        if (!obj.closest('td').is(':last-child'))
-                            obj.closest('td').next().find('input[type="text"],textarea').first().focusEnd();
-
-                    }
-                });
-                obj.focus(function (e) {
-                    Ω.addClass('dcFocus');
-                });
-                obj.blur(function (e) {
-                    Ω.removeClass('dcFocus');
-                });
-                obj.change(function (e) {
-                    Ω.change(e);
-                });
-            } else if (type == 'row') {
-                obj.click(function (e) {
-                    e.stopPropagation();
-                    Ω.parents().each(function () {
-                        $(this).attr('data-dcScroll', $(this).scrollTop());
-                    });
                     Ω.focus();
-                    Ω.parents().each(function () {
-                        $(this).scrollTop($(this).attr('data-dcScroll')).attr('data-dcScroll', '');
-                    });
-                    if (e.shiftKey) {
-                        selectRange(this);
-                    } else if (e.ctrlKey) {
-                        selectDisjoint(this);
-                    } else {
-                        selectSingle(this);
-                    }
-                });
-            } else if (type == 'toggle') {
-                obj.click(function (e) {
-                    e.stopPropagation();
-                    Ω.parents().each(function () {
-                        $(this).attr('data-dcScroll', $(this).scrollTop());
-                    });
-                    Ω.focus();
-                    Ω.parents().each(function () {
-                        $(this).scrollTop($(this).attr('data-dcScroll')).attr('data-dcScroll', '');
-                    });
-                    toggleInput(this);
-                });
-            }
-        }
 
-        Ω.click(function (e) {
-            clearSelection();
-        });
-
-        Ω.find('.dcControlWrapper').click(function (e) {
-            e.stopPropagation();
-        });
-
-        Ω.attr('tabindex', 1);
-
-        Ω.keydown(function (e) {
-            if (e.keyCode == 27) { // Escape
-                e.preventDefault();
-                clearSelection();
-            } else if (e.keyCode == 78) { // N
-                e.preventDefault();
-                if (!isDisjoint())
-                    insertAfter();
-            } else if (e.keyCode == 69) { // E
-                e.preventDefault();
-                focusInSelection();
-            } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
-                e.preventDefault();
-                table.find('.dcSelected > td,.dcSubSelect > td').each(function () {
-                    toggleInput(this);
-                });
-            } else if (e.keyCode == 46) { // Delete
-                if (table.find('.dcSelected,.dcSubSelect').length > 0) {
+                } else if (e.keyCode == 13 && e.ctrlKey) { // Ctrl + Enter
                     e.preventDefault();
-                    removeSelected();
-                }
-            } else if (e.keyCode == 38 || e.keyCode == 75) { // Up Arrow / K
-                if (table.find('.dcSelected,.dcSubSelect').length > 0) {
+
+                    δ._selectSingle($(this).closest('li'));
+                    δ.insert();
+                    δ._focusInSelection();
+
+                } else if (e.keyCode == 46 && e.ctrlKey) { // Ctrl + Delete
                     e.preventDefault();
-                    if (e.ctrlKey) { // + Ctrl
-                        moveUp();
-                    } else if (e.shiftKey) { // + Shift
-                        if (table.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
-                            if (!table.find('.dcSelected,.dcSubSelect').is(':first-child')) {
-                                selectRange(table.find('.dcSelected,.dcSubSelect').first().prev());
-                            }
-                        } else {
-                            selectRange(table.find('.dcSelected,.dcSubSelect').last().prev());
+
+                    δ.remove();
+
+                } else if (e.keyCode == 38 && e.ctrlKey) { // Ctrl + Up
+                    e.preventDefault();
+
+                    if (!obj.closest('li').is('.dcSelected,.dcSubSelect'))
+                        δ._selectSingle(obj.closest('li'));
+                    δ.moveUp();
+                    obj.focusEnd();
+
+                } else if (e.keyCode == 40 && e.ctrlKey) { // Ctrl + Down
+                    e.preventDefault();
+
+                    if (!obj.closest('li').is('.dcSelected,.dcSubSelect'))
+                        δ._selectSingle(obj.closest('li'));
+                    δ.moveDown();
+                    obj.focusEnd();
+
+                } else if (e.keyCode == 38 && e.shiftKey) { // Shift + Up
+                    e.preventDefault();
+
+                    if (list.find('.dcSelected').length == 0) {
+                        δ._selectSingle(list.find('li:last-child'));
+                    } else if (list.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
+                        if (!list.find('.dcSelected,.dcSubSelect').first().is(':first-child')) {
+                            δ._selectRange(list.find('.dcSelected,.dcSubSelect').first().prev());
                         }
                     } else {
-                        clearSubSelect();
-                        if (table.find('.dcSelected').is(':first-child')) {
-                            selectSingle(table.find('tr:last-child'));
-                        } else {
-                            selectSingle(table.find('.dcSelected').prev());
-                        }
+                        δ._selectRange(list.find('.dcSelected,.dcSubSelect').last().prev());
                     }
-                } else {
+
+                } else if (e.keyCode == 40 && e.shiftKey) { // Shift + Down
                     e.preventDefault();
-                    selectSingle(table.find('tr:last-child'));
-                }
-            } else if (e.keyCode == 40 || e.keyCode == 74) { // Down Arrow / J
-                if (table.find('.dcSelected,.dcSubSelect').length > 0) {
-                    e.preventDefault();
-                    if (e.ctrlKey) { // + Ctrl
-                        moveDown();
-                    } else if (e.shiftKey) { // + Shift
-                        if (table.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
-                            if (!table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
-                                selectRange(table.find('.dcSelected,.dcSubSelect').last().next());
-                            }
-                        } else {
-                            selectRange(table.find('.dcSelected,.dcSubSelect').first().next());
+
+                    if (list.find('.dcSelected').length == 0) {
+                        δ._selectSingle(list.find('li:first-child'));
+                    } else if (list.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
+                        if (!list.find('.dcSelected,.dcSubSelect').is(':last-child')) {
+                            δ._selectRange(list.find('.dcSelected,.dcSubSelect').last().next());
                         }
                     } else {
-                        clearSubSelect();
-                        if (table.find('.dcSelected').is(':last-child')) {
-                            selectSingle(table.find('tr:first-child'));
-                        } else {
-                            selectSingle(table.find('.dcSelected').next());
-                        }
+                        δ._selectRange(list.find('.dcSelected,.dcSubSelect').first().next());
                     }
-                } else {
+
+                } else if (e.keyCode == 38) { // Up Arrow
                     e.preventDefault();
-                    selectSingle(table.find('tr:first-child'));
-                }
-            }
-        });
 
-        if ($.ui && $.fn.sortable) {
-            table.find('tbody').sortable({
-                axis: 'y',
-                helper: function (e, item) {
-                    item.children().each(function () {
-                        $(this).width($(this).width());
-                    });
+                    var row = obj.closest('li');
+                    if (!row.is(':first-child'))
+                        row.prev().find('input[type="text"],textarea').first().focusEnd();
+                    else
+                        list.find('li:last-child').find('input[type="text"],textarea').first().focusEnd();
 
-                    if (!item.is('.dcSelected,.dcSubSelect')) {
-                        selectSingle(item);
-                    }
+                } else if (e.keyCode == 40) { // Down Arrow
+                    e.preventDefault();
 
-                    var elems = table.find('.dcSelected,.dcSubSelect').clone();
-                    item.data('multidrag', elems).siblings('.dcSelected,.dcSubSelect').remove();
-                    var helper = $('<tr />');
-                    return helper.append(elems);
-                },
-                stop: function (e, ui) {
-                    var elems = ui.item.data('multidrag');
-                    elems.each(function () {
-                        registerEvents('row', this);
-                        registerEvents('control', $(this).find('input[type="text"],textarea'));
-                        registerEvents('toggle', $(this).find('.dcToggle'));
-                    });
-                    ui.item.after(elems).remove();
-                    selectSingle(elems.first());
-                    selectRange(elems.last());
-                    table.find('tr').hide().show(0);  // Redraw to fix borders
-                    Ω.change();
+                    var row = obj.closest('li');
+                    if (!row.is(':last-child'))
+                        row.next().find('input[type="text"],textarea').first().focusEnd();
+                    else
+                        list.find('li:first-child').find('input[type="text"],textarea').first().focusEnd();
+
+                } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                    e.preventDefault();
+
+                    var parent = $(this).parent();
+                    δ._toggleInput(parent);
+                    parent.find('input[type="text"],textarea').first().focusEnd();
+
+                } else if (e.keyCode == 83 && e.altKey) { // Alt + S
+                    e.preventDefault();
+
+                    δ._selectDisjoint($(this).closest('li'));
+
                 }
             });
+            obj.focus(function (e) {
+                Ω.addClass('dcFocus');
+            });
+            obj.blur(function (e) {
+                Ω.removeClass('dcFocus');
+            });
+            obj.change(function (e) {
+                Ω.change(e);
+                δ._updateData();
+            });
+
+            return δ;
+        },
+
+        _registerRowEvents: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            obj = $(obj);
+
+            obj.click(function (e) {
+                e.stopPropagation();
+                Ω.focus();
+
+                if (e.shiftKey)
+                    δ._selectRange($(this));
+                else if (e.ctrlKey)
+                    δ._selectDisjoint($(this));
+                else
+                    δ._selectSingle($(this));
+            });
+
+            return δ;
+        },
+
+        _registerToggleEvents: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            obj.click(function (e) {
+                e.stopPropagation();
+                Ω.focus();
+
+                δ._toggleInput(this);
+            });
+
+            return δ;
+        },
+
+        _generateList: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var wrapper = $(document.createElement('div')).addClass('dcObjWrapper').appendTo(Ω);
+            var list = $(document.createElement('ul')).addClass('dcList').appendTo(wrapper);
+
+            for (i = 0; i < δ.data.length ; i++) {
+                var li = $(document.createElement('li')).appendTo(list);
+                var liWrapper = $(document.createElement('div')).appendTo(li);
+
+                var bullet = $(document.createElement('div')).addClass('dcBullet').text('•').appendTo(liWrapper);
+                var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(liWrapper);
+                δ._registerToggleEvents(toggle);
+
+                if (δ.data[i].toString().length < 50) {
+                    var input = $(document.createElement('input')).attr('type', 'text').appendTo(liWrapper);
+                    input.val(δ.data[i]);
+                    input.attr('placeholder', δ.options.placeholder);
+                    δ._registerInputEvents(input);
+                } else {
+                    var textarea = $(document.createElement('textarea')).appendTo(liWrapper);
+                    textarea.val(δ.data[i]);
+                    textarea.attr('placeholder', δ.options.placeholder);
+                    textarea.attr('rows', 5);
+                    δ._registerInputEvents(textarea);
+                }
+
+                δ._registerRowEvents(li);
+            }
+
+            Ω.keydown(function (e) {
+                if (e.keyCode == 27) { // Escape
+                    e.preventDefault();
+                    if (list.find('.dcSelected,.dcSubSelect').length > 0)
+                        δ.deselectAll();
+                    else
+                        Ω.blur();
+                } else if (e.keyCode == 78) { // N
+                    e.preventDefault();
+                    if (!δ._isDisjoint())
+                        δ.insert();
+                } else if (e.keyCode == 69) { // E
+                    e.preventDefault();
+                    δ._focusInSelection();
+                } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                    e.preventDefault();
+                    list.find('.dcSelected > div,.dcSubSelect > div').each(function () {
+                        δ._toggleInput(this);
+                    });
+                } else if (e.keyCode == 46) { // Delete
+                    e.preventDefault();
+                    δ.remove();
+                } else if (e.keyCode == 38 || e.keyCode == 74) { // Up Arrow / J
+                    e.preventDefault();
+                    if (list.find('.dcSelected,.dcSubSelect').length > 0) {
+                        if (e.ctrlKey) { // + Ctrl
+                            δ.moveUp();
+                        } else if (e.shiftKey) { // + Shift
+                            if (list.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
+                                if (!list.find('.dcSelected,.dcSubSelect').is(':first-child')) {
+                                    δ._selectRange(list.find('.dcSelected,.dcSubSelect').first().prev());
+                                }
+                            } else {
+                                δ._selectRange(list.find('.dcSelected,.dcSubSelect').last().prev());
+                            }
+                        } else {
+                            δ._deselectSub();
+                            if (list.find('.dcSelected').is(':first-child')) {
+                                δ._selectSingle(list.find('li:last-child'));
+                            } else {
+                                δ._selectSingle(list.find('.dcSelected').prev());
+                            }
+                        }
+                    } else {
+                        δ._selectSingle(list.find('li:last-child'));
+                    }
+                } else if (e.keyCode == 40 || e.keyCode == 75) { // Down Arrow / K
+                    e.preventDefault();
+                    if (list.find('.dcSelected,.dcSubSelect').length > 0) {
+                        if (e.ctrlKey) { // + Ctrl
+                            δ.moveDown();
+                        } else if (e.shiftKey) { // + Shift
+                            if (list.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
+                                if (!list.find('.dcSelected,.dcSubSelect').is(':last-child')) {
+                                    δ._selectRange(list.find('.dcSelected,.dcSubSelect').last().next());
+                                }
+                            } else {
+                                δ._selectRange(list.find('.dcSelected,.dcSubSelect').first().next());
+                            }
+                        } else {
+                            δ._deselectSub();
+                            if (list.find('.dcSelected').is(':last-child')) {
+                                δ._selectSingle(list.find('li:first-child'));
+                            } else {
+                                δ._selectSingle(list.find('.dcSelected').next());
+                            }
+                        }
+                    } else {
+                        δ._selectSingle(list.find('li:first-child'));
+                    }
+                }
+                δ._updateData();
+            });
+
+            if (δ.options.draggable && $.ui && $.fn.sortable) {
+                list.sortable({
+                    axis: 'y',
+                    helper: function (e, item) {
+                        if (!item.is('.dcSelected,.dcSubSelect')) {
+                            δ._selectSingle(item);
+                        }
+
+                        var elems = list.find('.dcSelected,.dcSubSelect').clone();
+                        item.data('multidrag', elems).siblings('.dcSelected,.dcSubSelect').remove();
+                        var helper = $('<li />');
+                        return helper.append(elems);
+                    },
+                    stop: function (e, ui) {
+                        var elems = ui.item.data('multidrag');
+                        elems.each(function () {
+                            δ._registerRowEvents($(this));
+                            δ._registerInputEvents($(this).find('input[type="text"],textarea'));
+                            δ._registerToggleEvents($(this).find('.dcToggle'));
+                        });
+                        ui.item.after(elems).remove();
+                        δ._selectSingle(elems.first());
+                        if (elems.length > 1)
+                            δ._selectRange(elems.last());
+                        Ω.change();
+                        δ._updateData();
+                    }
+                });
+            }
+
+            var controlWrapper = $(document.createElement('div')).addClass('dcControlWrapper').appendTo(wrapper);
+            var controlPanel = $(document.createElement('div')).addClass('dcControlPanel').appendTo(controlWrapper);
+            var controlList = $(document.createElement('ul')).appendTo(controlPanel);
+
+            var control_select = $(document.createElement('li')).text('Select All').click(function (e) {
+                e.stopPropagation();
+                δ.selectAll();
+            }).appendTo(controlList);
+
+            var control_deselect = $(document.createElement('li')).text('Deselect All').click(function (e) {
+                e.stopPropagation();
+                δ.deselectAll();
+            }).appendTo(controlList);
+
+            var control_moveUp = $(document.createElement('li')).text('Move Up').addClass('dcMove dcDisabled').click(function (e) {
+                e.stopPropagation();
+                if (!$(this).hasClass('dcDisabled'))
+                    δ.moveUp();
+            }).appendTo(controlList);
+
+            var control_moveDown = $(document.createElement('li')).text('Move Down').addClass('dcMove dcDisabled').click(function (e) {
+                e.stopPropagation();
+                if (!$(this).hasClass('dcDisabled'))
+                    δ.moveDown();
+            }).appendTo(controlList);
+
+            var control_insert = $(document.createElement('li')).text('Insert').addClass('dcInsert').click(function (e) {
+                e.stopPropagation();
+                if (!$(this).hasClass('dcDisabled')) {
+                    δ.insert();
+                    δ._focusInSelection();
+                }
+            }).appendTo(controlList);
+
+            var control_remove = $(document.createElement('li')).text('Remove').addClass('dcRemove dcDisabled').click(function (e) {
+                e.stopPropagation();
+                δ.remove()
+            }).appendTo(controlList);
+
+            return δ;
+        },
+
+        _updateData: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var list = Ω.find('.dcList');
+            var newData = [];
+            for (var i = 0; i < list.find('li').length; i++) {
+                newData.push(list.find('li').eq(i).find('input[type="text"],textarea').val());
+            }
+            δ.data = newData;
+
+            return δ;
+        },
+
+        _enableInsert: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcInsert').removeClass('dcDisabled');
+
+            return δ;
+        },
+
+        _disableInsert: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcInsert').addClass('dcDisabled');
+
+            return δ;
+        },
+
+        _enableMove: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcMove').removeClass('dcDisabled');
+
+            return δ;
+        },
+
+        _disableMove: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcMove').addClass('dcDisabled');
+
+            return δ;
+        },
+
+        _enableRemove: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcRemove').removeClass('dcDisabled');
+
+            return δ;
+        },
+
+        _disableRemove: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcRemove').addClass('dcDisabled');
+
+            return δ;
+        },
+
+        _focusInSelection: function (row) {
+            var Ω = $(this.container),
+                δ = this;
+
+            if (Ω.find('.dcList').find('.dcSelected,.dcSubSelect').length == 0)
+                Ω.find('.dcList').find('li').first().find('input[type="text"],textarea').focusEnd();
+
+            row = row || 0;
+            Ω.find('.dcList').find('.dcSelected,.dcSubSelect').eq(row).find('input[type="text"],textarea').focusEnd();
+
+            return δ;
+        },
+
+        _toggleInput: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            obj = $(obj);
+            if (obj.prop('tagName') == 'DIV')
+                obj = obj.closest('li');
+
+            var height = Ω.height();
+
+            var control = obj.find('input[type="text"],textarea');
+
+            if (control.prop('tagName') == 'INPUT') {
+                var text = control.val();
+                var placeholder = control.attr('placeholder');
+                var newControl = $(document.createElement('textarea')).insertAfter(control);
+                newControl.val(text);
+                newControl.attr('placeholder', placeholder);
+                newControl.attr('rows', 5);
+                control.remove();
+                δ._registerInputEvents(newControl);
+            } else {
+                var text = control.val();
+                var placeholder = control.attr('placeholder');
+                var newControl = $(document.createElement('input')).attr('type', 'text').insertAfter(control);
+                newControl.val(text);
+                newControl.attr('placeholder', placeholder);
+                control.remove();
+                δ._registerInputEvents(newControl);
+            }
+
+            if (Ω.height() != height)
+                Ω.resize();
+
+            return δ;
+        },
+
+        _selectSingle: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ.deselectAll();
+
+            δ._enableInsert();
+            δ._enableMove();
+            δ._enableRemove();
+
+            obj = $(obj);
+            if (obj.prop('tagName') == 'DIV')
+                obj = obj.parent();
+
+            obj.addClass('dcSelected');
+
+            return δ;
+        },
+
+        _selectRange: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ._enableInsert();
+            δ._enableMove();
+            δ._enableRemove();
+
+            obj = $(obj);
+            if (obj.prop('tagName') == 'DIV')
+                obj = obj.parent();
+
+            if (obj.hasClass('dcSelected')) {
+                if (Ω.find('.dcList').find('.dcSubSelect').length > 0)
+                    δ._deselectSub();
+                else
+                    δ.deselectAll();
+            } else if (Ω.find('.dcList').find('.dcSelected').length == 0) {
+                δ._selectSingle(obj);
+            } else {
+                δ._deselectSub();
+
+                obj.addClass('dcSubSelect');
+                var after = obj.nextAll('.dcSelected').length == 1;
+                var rows = after ? obj.nextAll('li') : obj.prevAll('li');
+                for (var i = 0; i < rows.length; i++) {
+                    if (rows.eq(i).hasClass('dcSelected')) return;
+                    rows.eq(i).addClass('dcSubSelect');
+                }
+            }
+
+            return δ;
+        },
+
+        _selectDisjoint: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ._disableInsert();
+            δ._enableMove();
+            δ._enableRemove();
+
+            obj = $(obj);
+            if (obj.prop('tagName') == 'DIV')
+                obj = obj.parent();
+
+            if (Ω.find('.dcList').find('.dcSelected,.dcSubSelect').length > 0) {
+                if (obj.is('.dcSelected,.dcSubSelect')) {
+                    obj.removeClass('dcSelected').removeClass('dcSubSelect');
+                } else {
+                    obj.addClass('dcSubSelect');
+                }
+            } else {
+                δ._selectSingle(obj);
+            }
+
+            return δ;
+        },
+
+        _deselect: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcList').find('li').removeClass('dcSelected');
+
+            if (Ω.find('.dcList').find('.dcSelected,.dcSubSelect').length == 0) {
+                δ._disableMove();
+                δ._disableRemove();
+            }
+
+            return δ;
+        },
+
+        _deselectSub: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcList').find('li').removeClass('dcSubSelect');
+
+            if (Ω.find('.dcList').find('.dcSelected,.dcSubSelect').length == 0) {
+                δ._disableMove();
+                δ._disableRemove();
+            }
+
+            return δ;
+        },
+
+        'selectAll': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ._selectSingle(Ω.find('.dcList').find('li:first-child'));
+
+            if (Ω.find('.dcList').find('li').length > 1)
+                δ._selectRange(Ω.find('.dcList').find('li:last-child'));
+
+            δ._enableInsert();
+
+            return δ;
+        },
+
+        'deselectAll': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ._deselect();
+            δ._deselectSub();
+
+            δ._enableInsert();
+
+            return δ;
+        },
+
+        'getData': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            return δ.data;
+        },
+
+        'moveUp': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var list = Ω.find('.dcList');
+            if (list.find('.dcSelected,.dcSubSelect').length > 0 &&
+                !list.find('.dcSelected,.dcSubSelect').is(':first-child')) {
+                list.find('.dcSelected,.dcSubSelect').each(function () {
+                    $(this).insertBefore($(this).prev());
+                });
+                Ω.change();
+            }
+
+            δ._updateData();
+
+            return δ;
+        },
+
+        'moveDown': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var list = Ω.find('.dcList');
+            if (list.find('.dcSelected,.dcSubSelect').length > 0 &&
+                !list.find('.dcSelected,.dcSubSelect').is(':last-child')) {
+                $(list.find('.dcSelected,.dcSubSelect').get().reverse()).each(function () {
+                    $(this).insertAfter($(this).next());
+                });
+                Ω.change();
+            }
+
+            δ._updateData();
+
+            return δ;
+        },
+
+        'insert': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var height = Ω.height();
+
+            var li = $(document.createElement('li'));
+            var liWrapper = $(document.createElement('div')).appendTo(li);
+
+            var bullet = $(document.createElement('div')).addClass('dcBullet').text('•').appendTo(liWrapper);
+            var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(liWrapper);
+            δ._registerToggleEvents(toggle);
+
+            var input = $(document.createElement('input')).attr('type', 'text').appendTo(liWrapper);
+            input.val(δ.options.defaulttext);
+            input.attr('placeholder', δ.options.placeholder);
+            δ._registerInputEvents(input);
+
+            var list = Ω.find('.dcList');
+            if (list.find('li').length == 0) {
+                list.append(li);
+            } else if (list.find('.dcSelected').length == 1) {
+                if (list.find('.dcSubSelect').length > 0)
+                    list.find('.dcSelected,.dcSubSelect').last().after(li);
+                else
+                    list.find('.dcSelected').after(li);
+            } else {
+                list.find('li:last-child').after(li);
+            }
+
+            δ._registerRowEvents(li);
+
+            δ._selectSingle(li);
+            Ω.change();
+
+            if (Ω.height() != height)
+                Ω.resize();
+
+            δ._updateData();
+
+            return δ;
+        },
+
+        'remove': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var list = Ω.find('.dcList');
+            if (list.find('.dcSelected,.dcSubSelect').length > 0 && confirm('Are you sure you wish to delete the selected rows?')) {
+                var height = Ω.height();
+
+                list.find('.dcSelected,.dcSubSelect').remove();
+                if (list.find('li').length == 0) {
+                    δ.insert();
+                } else {
+                    δ._enableInsert();
+                    δ._disableMove();
+                    δ._disableRemove();
+                }
+
+                Ω.change();
+
+                if (Ω.height() != height)
+                    Ω.resize();
+            }
+
+            Ω.focus();
+
+            δ._updateData();
+
+            return δ;
+        },
+
+        'reset': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ.destroy();
+            δ._init();
+            return δ;
+        },
+
+        'destroy': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ.data = δ.options.initial; // For reset.
+            Ω.removeClass('dcContainer').removeAttr('tabindex');
+            Ω.contents().remove();
+            Ω.removeData('dynamiclist');
+
+            Ω.append(δ.original);
+
+            return Ω[0];
+        }
+    };
+
+    $dc.text = function (container, options) {
+        var δ = this,
+            Ω = $(container);
+
+        δ.container = Ω;
+        δ.original = Ω.contents().clone();
+        δ.options = options;
+        δ.data = options.initial;
+    };
+
+    $dc.text.prototype = {
+        _init: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.contents().remove();
+
+            if (δ.data === null)
+                δ.data = δ.options.defaulttext;
+
+            δ._generateText();
+
+            Ω.addClass('dcContainer');
+            Ω.attr('tabindex', 1);
+
+            return δ;
+        },
+
+        _registerInputEvents: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            var list = Ω.find('.dcText');
+            obj = $(obj);
+
+            obj.click(function (e) {
+                e.stopPropagation();
+            });
+            obj.keydown(function (e) {
+                e.stopPropagation();
+                if (e.keyCode == 27) { // Escape
+                    e.preventDefault();
+
+                    Ω.focus();
+
+                } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                    e.preventDefault();
+
+                    var parent = $(this).parent();
+                    δ._toggleInput(parent);
+                    parent.find('input[type="text"],textarea').first().focusEnd();
+
+                }
+            });
+            obj.focus(function (e) {
+                Ω.addClass('dcFocus');
+            });
+            obj.blur(function (e) {
+                Ω.removeClass('dcFocus');
+            });
+            obj.change(function (e) {
+                Ω.change(e);
+                δ._updateData();
+            });
+
+            return δ;
+        },
+
+        _registerToggleEvents: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            obj.click(function (e) {
+                e.stopPropagation();
+                Ω.focus();
+
+                δ._toggleInput(this);
+            });
+
+            return δ;
+        },
+
+        _generateText: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            var wrapper = $(document.createElement('div')).addClass('dcObjWrapper').appendTo(Ω);
+            var text = $(document.createElement('div')).addClass('dcText').appendTo(wrapper);
+
+            var innerWrapper = $(document.createElement('div')).addClass('dcTextInnerWrapper').appendTo(text);
+            var toggle = $(document.createElement('div')).addClass('dcToggle').attr('title', 'Click here to toggle input box size.').appendTo(innerWrapper);
+            δ._registerToggleEvents(toggle);
+
+            if (δ.data.toString().length < 50) {
+                var input = $(document.createElement('input')).attr('type', 'text').appendTo(innerWrapper);
+                input.val(δ.data);
+                input.attr('placeholder', δ.options.placeholder);
+                δ._registerInputEvents(input);
+            } else {
+                var textarea = $(document.createElement('textarea')).appendTo(innerWrapper);
+                textarea.val(δ.data);
+                textarea.attr('placeholder', δ.options.placeholder);
+                textarea.attr('rows', 5);
+                δ._registerInputEvents(textarea);
+            }
+
+            Ω.keydown(function (e) {
+                if (e.keyCode == 27) { // Escape
+                    e.preventDefault();
+                    Ω.blur();
+                } else if (e.keyCode == 69) { // E
+                    e.preventDefault();
+                    δ._focusInput();
+                } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                    e.preventDefault();
+                    δ._toggleInput(Ω.find('.dcText'));
+                }
+                δ._updateData();
+            });
+        },
+
+        _updateData: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ.data = Ω.find('.dcText').find('input[type="text"],textarea').first().val();
+
+            return δ;
+        },
+
+        _toggleInput: function (obj) {
+            var Ω = $(this.container),
+                δ = this;
+
+            obj = $(obj);
+            if (obj.hasClass('dcToggle'))
+                obj = obj.parent();
+
+            var height = Ω.height();
+
+            var control = obj.find('input[type="text"],textarea');
+
+            if (control.prop('tagName') == 'INPUT') {
+                var text = control.val();
+                var placeholder = control.attr('placeholder');
+                var newControl = $(document.createElement('textarea')).insertAfter(control);
+                newControl.val(text);
+                newControl.attr('placeholder', placeholder);
+                newControl.attr('rows', 5);
+                control.remove();
+                δ._registerInputEvents(newControl);
+            } else {
+                var text = control.val();
+                var placeholder = control.attr('placeholder');
+                var newControl = $(document.createElement('input')).attr('type', 'text').insertAfter(control);
+                newControl.val(text);
+                newControl.attr('placeholder', placeholder);
+                control.remove();
+                δ._registerInputEvents(newControl);
+            }
+
+            if (Ω.height() != height)
+                Ω.resize();
+
+            return δ;
+        },
+
+        _focusInput: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.find('.dcText').find('input[type="text"],textarea').focusEnd();
+
+            return δ;
+        },
+
+        'getData': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            return δ.data;
+        },
+
+        'reset': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ.destroy();
+            δ._init();
+            return δ;
+        },
+
+        'destroy': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ.data = δ.options.initial; // For reset.
+            Ω.removeClass('dcContainer').removeAttr('tabindex');
+            Ω.contents().remove();
+            Ω.removeData('dynamictext');
+
+            Ω.append(δ.original);
+
+            return Ω[0];
+        }
+    };
+
+    $.fn.dynamicTable = function () {
+        var Ω = $(this);
+        if (arguments.length == 0)
+            return Ω;
+
+        var arg = arguments[0];
+
+        if (typeof arg === 'string') {
+            // We are calling a command here.
+            var control = Ω.data('dynamictable'),
+                options = $.extend({}, $dc.defaults, control);
+
+            if (!control)
+                Ω.data('dynamictable', (control = new $dc.table(Ω, options)))
+
+            if (typeof control[arg] !== 'function')
+                throw 'Unknown method: ' + arg;
+            if (arg.startsWith('_'))
+                throw 'Cannot access private method ' + arg + ' from a public context.';
+
+            var temp = control[arg].apply(control, Array.prototype.slice.call(arguments, 1));
+            Ω.data('dynamictable', control);
+            return temp;
+
+        } else if (isArrayOfArrays(arg)) {
+            // We are initializing with initial data.
+            var options = $.extend({}, $dc.defaults, { initial: arg }),
+                control = new $dc.table(Ω, options);
+
+            control._init();
+            Ω.data('dynamictable', control);
+
+        } else if (typeof arg === 'object') {
+            // We are initializing with options.
+            var options = $.extend({}, $dc.defaults, arg),
+                control = new $dc.table(Ω, options);
+
+            control._init();
+            Ω.data('dynamictable', control);
         }
 
         return Ω;
-    }
+    };
 
-    //#endregion
+    $.fn.dynamicList = function () {
+        var Ω = $(this);
+        if (arguments.length == 0)
+            return Ω;
+
+        var arg = arguments[0];
+
+        if (typeof arg === 'string') {
+            // We are calling a command here.
+            var control = Ω.data('dynamiclist'),
+                options = $.extend({}, $dc.defaults, control);
+
+            if (!control)
+                Ω.data('dynamiclist', (control = new $dc.list(Ω, options)))
+
+            if (typeof control[arg] !== 'function')
+                throw 'Unknown method: ' + arg;
+            if (arg.startsWith('_'))
+                throw 'Cannot access private method ' + arg + ' from a public context.';
+
+            var temp = control[arg].apply(control, Array.prototype.slice.call(arguments, 1));
+            Ω.data('dynamiclist', control);
+            return temp;
+
+        } else if ($.isArray(arg)) {
+            // We are initializing with initial data.
+            var options = $.extend({}, $dc.defaults, { initial: arg }),
+                control = new $dc.list(Ω, options);
+
+            control._init();
+            Ω.data('dynamiclist', control);
+
+        } else if (typeof arg === 'object') {
+            // We are initializing with options.
+            var options = $.extend({}, $dc.defaults, arg),
+                control = new $dc.list(Ω, options);
+
+            control._init();
+            Ω.data('dynamiclist', control);
+        }
+
+        return Ω;
+    };
+
+    $.fn.dynamicText = function () {
+        var Ω = $(this);
+        if (arguments.length == 0)
+            return Ω;
+
+        var arg = arguments[0];
+
+        if (typeof arg === 'string') {
+            // We are calling a command here.
+            var control = Ω.data('dynamictext'),
+                options = $.extend({}, $dc.defaults, control);
+
+            if (!control)
+                Ω.data('dynamictext', (control = new $dc.text(Ω, options)))
+
+            if (typeof control[arg] !== 'function')
+                throw 'Unknown method: ' + arg;
+            if (arg.startsWith('_'))
+                throw 'Cannot access private method ' + arg + ' from a public context.';
+
+            var temp = control[arg].apply(control, Array.prototype.slice.call(arguments, 1));
+            Ω.data('dynamictext', control);
+            return temp;
+
+        } else if (typeof arg === 'object') {
+            // We are initializing with options.
+            var options = $.extend({}, $dc.defaults, arg),
+                control = new $dc.text(Ω, options);
+
+            control._init();
+            Ω.data('dynamictext', control);
+        }
+
+        return Ω;
+    };
 
 }) (jQuery)
