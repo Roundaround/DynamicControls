@@ -1695,10 +1695,91 @@
         }
     };
 
-    $.fn.dynamicTable = function (arg) {
+    $dc.text = function (container, options) {
+        var δ = this,
+            Ω = $(container);
+
+        δ.container = Ω;
+        δ.original = Ω.contents().clone();
+        δ.options = options;
+        δ.data = options.initial;
+    };
+
+    $dc.text.prototype = {
+        _init: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.contents().remove();
+
+            if (δ.data === null)
+                δ.data = δ.options.defaulttext;
+
+            δ._generateText();
+
+            Ω.addClass('dcContainer');
+            Ω.attr('tabindex', 1);
+
+            return δ;
+        },
+
+        _registerInputEvents: function () {
+
+        },
+
+        _registerRowEvents: function () {
+
+        },
+
+        _registerToggleEvents: function () {
+
+        },
+
+        _generateText: function () {
+            
+        },
+
+        _toggleInput: function () {
+
+        },
+
+        'getData': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            return δ.data;
+        },
+
+        'reset': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ.destroy();
+            δ._init();
+            return δ;
+        },
+
+        'destroy': function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            δ.data = δ.options.initial; // For reset.
+            Ω.removeClass('dcContainer').removeAttr('tabindex');
+            Ω.contents().remove();
+            Ω.removeData('dynamictext');
+
+            Ω.append(δ.original);
+
+            return Ω[0];
+        }
+    };
+
+    $.fn.dynamicTable = function () {
         var Ω = $(this);
         if (arguments.length == 0)
             return Ω;
+
+        var arg = arguments[0];
 
         if (typeof arg === 'string') {
             // We are calling a command here.
@@ -1706,7 +1787,7 @@
                 options = $.extend({}, $dc.defaults, control);
 
             if (!control)
-                Ω.data('dynamictable', (control = new $dc.table(Ω, 'table', options)))
+                Ω.data('dynamictable', (control = new $dc.table(Ω, options)))
 
             if (typeof control[arg] !== 'function')
                 throw 'Unknown method: ' + arg;
@@ -1737,10 +1818,12 @@
         return Ω;
     };
 
-    $.fn.dynamicList = function (arg) {
+    $.fn.dynamicList = function () {
         var Ω = $(this);
         if (arguments.length == 0)
             return Ω;
+
+        var arg = arguments[0];
 
         if (typeof arg === 'string') {
             // We are calling a command here.
@@ -1748,7 +1831,7 @@
                 options = $.extend({}, $dc.defaults, control);
 
             if (!control)
-                Ω.data('dynamiclist', (control = new $dc.list(Ω, 'list', options)))
+                Ω.data('dynamiclist', (control = new $dc.list(Ω, options)))
 
             if (typeof control[arg] !== 'function')
                 throw 'Unknown method: ' + arg;
@@ -1779,27 +1862,40 @@
         return Ω;
     };
 
-    //$.fn.dynamicText = function () {
-    //    var option = arguments[0],
-    //        args = Array.prototype.slice.call(arguments, 1);
+    $.fn.dynamicText = function () {
+        var Ω = $(this);
+        if (arguments.length == 0)
+            return Ω;
 
-    //    return this.each(function () {
-    //        var Ω = $(this),
-    //            data = Ω.data('dynamiccontrol'),
-    //            options = $.extend({}, defaults, Ω.data(), typeof option === 'object' && option);
+        var arg = arguments[0];
 
-    //        if (!data) { Ω.data('dynamiccontrol', (data = new DynamicControl(this, 'text', options.initial, options))); }
+        if (typeof arg === 'string') {
+            // We are calling a command here.
+            var control = Ω.data('dynamictext'),
+                options = $.extend({}, $dc.defaults, control);
 
-    //        if (typeof option === 'string') {
-    //            if (typeof data[option] !== 'function')
-    //                throw 'Unknown method: ' + option;
-    //            if (option.startsWith('_'))
-    //                throw 'Cannot access private method ' + option + ' from a public context.';
-    //            return data[option].apply(args);
-    //        }
-    //        data.init();
-    //        return this;
-    //    });
-    //};
+            if (!control)
+                Ω.data('dynamictext', (control = new $dc.text(Ω, options)))
+
+            if (typeof control[arg] !== 'function')
+                throw 'Unknown method: ' + arg;
+            if (arg.startsWith('_'))
+                throw 'Cannot access private method ' + arg + ' from a public context.';
+
+            var temp = control[arg].apply(control, Array.prototype.slice.call(arguments, 1));
+            Ω.data('dynamictext', control);
+            return temp;
+
+        } else if (typeof arg === 'object') {
+            // We are initializing with options.
+            var options = $.extend({}, $dc.defaults, arg),
+                control = new $dc.text(Ω, options);
+
+            control._init();
+            Ω.data('dynamictext', control);
+        }
+
+        return Ω;
+    };
 
 }) (jQuery)
