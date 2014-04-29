@@ -1,6 +1,6 @@
 #DynamicControls
 
-DynamicControls v1.0.0  
+DynamicControls v1.0.2  
 jQuery plugin for creating utilizing advanced data manipulation controls.  
 https://github.com/Roundaround/DynamicControls  
 http://dynamiccontrols.roundaround.me  
