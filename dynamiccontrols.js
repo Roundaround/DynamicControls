@@ -1,37 +1,9 @@
 ﻿/**
- *  DynamicControls v1.0.0
+ *  DynamicControls v1.0.2
  *  jQuery Plugin for creating and utilizing advanced data manipulation controls.
  *  https://github.com/Roundaround/DynamicControls
  *  Copyright (c) 2013 Evan Steinkerchner
  *  Licensed under the LGPL v2.1 license.
-**/
-
-/**
- *  Changelog:
- *
- *  0.7.2:
- *    ~ Moved several functions outside of objects.
- *    ~ Wrote color parser function.
- *    ~ Made properties private.
- *    ~ Removed public accessor for several functions.
- *    ~ Added public setter for default data.
- *    ~ Removed overwrite property.
- *    ~ Made focusColor a property.
- *    ~ Fixed selection bug with Ctrl + Del shortcut.
- *    ~ Reorganized fetching unique id.
- *  0.7.4:
- *    ~ Moved the multi-dimensional array checker outside plugin.
- *    ~ Wrapped entire file in local scope to avoid $ conflicts.
- *    ~ Checked if browser supports rgba before setting alpha value.
- *  1.0.0:
- *    ~ Completely rewrote to adhere to jQuery plugin standards.
- *    ~ Created internal use namespace DynamicControls/$dc.
- *    ~ Maintained separate internal objects for different control types.
- *    ~ Update internal data on every change.
- *    ~ Added/tweaked keyboard controls.
- *    ~ Introduced DynamicText - a toggleable input<->textarea control.
- *    ~ Added defaulttext option.
- *    ~ Initial table input placeholder attributes are now the placeholder option.
 **/
 
 (function ($) {
@@ -777,6 +749,16 @@
             return δ;
         },
 
+        _redraw: function() {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.contents().remove();
+            δ._generateTable();
+
+            return δ;
+        },
+
         'selectAll': function () {
             var Ω = $(this.container),
                 δ = this;
@@ -808,6 +790,30 @@
                 δ = this;
 
             return δ.data;
+        },
+
+        'setData': function (newData) {
+            var Ω = $(this.container),
+                δ = this;
+
+            if (typeof newData === 'undefined' || newData === null)
+                newData = [].repeat([].repeat(δ.options.defaulttext, δ.options.columns), δ.options.rows);
+
+            newData = normalizeDoubleArray(newData, δ.options.defaulttext);
+
+            δ.data = newData;
+            δ._redraw();
+        },
+
+        'setElement': function (column, row, value) {
+            var Ω = $(this.container),
+                δ = this;
+
+            if (typeof value === 'undefined' || value === null)
+                value = δ.options.defaulttext;
+
+            δ.data[row][column] = value;
+            δ._redraw();
         },
 
         'moveUp': function () {
@@ -1542,6 +1548,16 @@
             return δ;
         },
 
+        _redraw: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.contents().remove();
+            δ._generateList();
+
+            return δ;
+        },
+
         'selectAll': function () {
             var Ω = $(this.container),
                 δ = this;
@@ -1573,6 +1589,28 @@
                 δ = this;
 
             return δ.data;
+        },
+
+        'setData': function (newData) {
+            var Ω = $(this.container),
+                δ = this;
+
+            if (typeof newData === 'undefined' || newData === null)
+                newData = [].repeat(δ.options.defaulttext, δ.options.rows);
+
+            δ.data = newData;
+            δ._redraw();
+        },
+
+        'setElement': function (index, value) {
+            var Ω = $(this.container),
+                δ = this;
+
+            if (typeof value === 'undefined' || value === null)
+                value = δ.options.defaulttext;
+
+            δ.data[index] = value;
+            δ._redraw();
         },
 
         'moveUp': function () {
@@ -1884,11 +1922,32 @@
             return δ;
         },
 
+        _redraw: function () {
+            var Ω = $(this.container),
+                δ = this;
+
+            Ω.contents().remove();
+            δ._generateText();
+
+            return δ;
+        },
+
         'getData': function () {
             var Ω = $(this.container),
                 δ = this;
 
             return δ.data;
+        },
+
+        'setData': function (newData) {
+            var Ω = $(this.container),
+                δ = this;
+
+            if (typeof newData === 'undefined' || newData === null)
+                newData = δ.options.defaulttext;
+
+            δ.data = newData;
+            δ._redraw();
         },
 
         'reset': function () {

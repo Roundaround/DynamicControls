@@ -7,20 +7,6 @@ Copyright (c) 2013 Evan Steinkerchner
 Licensed under the LGPL v2.1 license.  
 
 ###Changelog
-* **0.7.2** *2013-07-15*
-    - Moved several functions outside of objects.
-    - Wrote color parser function.
-    - Made properties private.
-    - Removed public accessor for several functions.
-    - Added public setter for default data.
-    - Removed overwrite property.
-    - Made focusColor a property.
-    - Fixed selection bug with Ctrl + Del shortcut.
-    - Reorganized fetching unique id.
-* **0.7.4** *2013-07-20*
-    - Moved the multi-dimensional array checker outside plugin.
-    - Wrapped entire file in local scope to avoid $ conflicts.
-    - Checked if browser supports rgba before setting alpha value.
 * **1.0.0** *2014-02-03*
     - Completely rewrote to adhere to jQuery plugin standards.
     - Created internal use namespace DynamicControls/$dc.
@@ -30,3 +16,17 @@ Licensed under the LGPL v2.1 license.
     - Introduced DynamicText - a toggleable input<->textarea control.
     - Added defaulttext option.
     - Initial table input placeholder attributes are now the placeholder option.
+* **0.7.4** *2013-08-18*
+    - Moved the multi-dimensional array checker outside plugin.
+    - Wrapped entire file in local scope to avoid $ conflicts.
+    - Checked if browser supports rgba before setting alpha value.
+* **0.7.2** *2013-08-08*
+    - Moved several functions outside of objects.
+    - Wrote color parser function.
+    - Made properties private.
+    - Removed public accessor for several functions.
+    - Added public setter for default data.
+    - Removed overwrite property.
+    - Made focusColor a property.
+    - Fixed selection bug with Ctrl + Del shortcut.
+    - Reorganized fetching unique id.
