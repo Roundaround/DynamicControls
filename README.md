@@ -8,6 +8,10 @@ Copyright (c) 2013 Evan Steinkerchner
 Licensed under the LGPL v2.1 license.  
 
 ###Changelog
+* **1.0.2** *2014-04-29*
+    - Cleaned distribution package and repo contents.
+    - Added minified copies of .js and .css files. (Issue 14)
+    - Implemented setData/Element functions. (Issue 11)
 * **1.0.0** *2014-02-03*
     - Completely rewrote to adhere to jQuery plugin standards.
     - Created internal use namespace DynamicControls/$dc.
