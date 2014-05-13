@@ -118,6 +118,11 @@
 		_0: 48, _1: 49, _2: 50, _3: 51,
 		_4: 52, _5: 53, _6: 54, _7: 55,
 		_8: 56, _9: 57,
+
+		PARENRIGHT: 48, EXCLAMATION: 49,
+		STRUDEL: 50, POUND: 51, DOLLAR: 52,
+		PERCENT: 53, CARROT: 54, AMPERSAND: 55,
+		ASTERISK: 56, PARENLEFT: 57,
 		
 		SPACE: 32, ENTER: 13, TAB: 9,
 		ESC: 27, BACKSPACE: 8, SHIFT: 16,
@@ -126,9 +131,13 @@
 		END: 35, HOME: 36, SCROLLLOCK: 145,
 		BREAK: 19, INSERT: 45, DELETE: 46,
 		
-		SEMICOLON: 186, EQUAL: 187, COMMA: 188,
-		HYPHEN: 189, PERIOD: 190, TILDE: 192,
-		APOSTROPHE: 222,
+		SEMICOLON: 186, COLON: 186, EQUAL: 187,
+		PLUS: 187, COMMA: 188, LESS: 188,
+		HYPHEN: 189, PERIOD: 190, GREATER: 190,
+		SQLEFT: 219, CURLEFT: 219, SQRIGHT: 221,
+		CURRIGHT: 221, BACKTICK: 192, TILDE: 192,
+		APOSTROPHE: 222, QUOTE: 222, BACKSLASH: 220,
+        BAR: 220, FWDSLASH: 191, QUESTION: 191,
 
         LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40,
 		
@@ -149,7 +158,12 @@
 	};
 
 	function KeyBinding(key, modifiers) {
-	    if (typeof key !== 'number' || key % 1 != 0)
+	    if ($.isArray(key)) {
+	        for (var i = 0; i < key.length; i++) {
+	            if (typeof key[i] !== 'number' || key[i] % 1 != 0)
+	                return null;
+	        }
+	    } else if (typeof key !== 'number' || key % 1 != 0)
 	        return null;
 
 	    if (typeof modifiers === 'undefined' || modifiers === null)
@@ -174,8 +188,11 @@
 	    if (!(binding instanceof KeyBinding))
             return false;
 
-        if (event.keyCode != binding.key)
-            return false;
+	    if ($.isArray(binding.key) && !$.inArray(event.keyCode, binding.key))
+	        return false;
+	    else if (event.keyCode != binding.key)
+	        return false;
+
         if (($.inArray(Keys.Modifiers.CTRL, binding.modifiers) != -1) == !event.ctrlKey)
             return false;
         if (($.inArray(Keys.Modifiers.SHIFT, binding.modifiers) != -1) == !event.shiftKey)
@@ -205,7 +222,11 @@
             SELECTUP: new KeyBinding(Keys.UP, Keys.Modifiers.SHIFT),
             SELECTDOWN: new KeyBinding(Keys.DOWN, Keys.Modifiers.SHIFT),
             CURSORUP: new KeyBinding(Keys.UP),
-            CURSORDOWN: new KeyBinding(Keys.DOWN)
+            CURSORDOWN: new KeyBinding(Keys.DOWN),
+            CURSORLEFT: new KeyBinding([Keys.LEFT, Keys.LESS], Keys.Modifiers.CTRL),
+            CURSORRIGHT: new KeyBinding([Keys.RIGHT, Keys.GREATER], Keys.Modifiers.CTRL),
+            TOGGLE: new KeyBinding([Keys.A, Keys.T], Keys.Modifiers.ALT),
+            SELECT: new KeyBinding(Keys.S, Keys.Modifiers.ALT)
         }
     };
 
@@ -347,29 +368,29 @@
                     else
                         table.find('tr:first-child').find('input[type="text"],textarea').eq(num).focusEnd();
 
-                } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                } else if (keyEventMatches(e, δ.options.keybindings.CURSORLEFT)) {
+                    e.preventDefault();
+
+                    if (!obj.closest('td').is(':first-child'))
+                        obj.closest('td').prev().find('input[type="text"],textarea').first().focusEnd();
+
+                } else if (keyEventMatches(e, δ.options.keybindings.CURSORRIGHT)) {
+                    e.preventDefault();
+
+                    if (!obj.closest('td').is(':last-child'))
+                        obj.closest('td').next().find('input[type="text"],textarea').first().focusEnd();
+
+                } else if (keyEventMatches(e, δ.options.keybindings.TOGGLE)) {
                     e.preventDefault();
 
                     var parent = $(this).parent();
                     δ._toggleInput(parent);
                     parent.find('input[type="text"],textarea').first().focusEnd();
 
-                } else if (e.keyCode == 83 && e.altKey) { // Alt + S
+                } else if (keyEventMatches(e, δ.options.keybindings.SELECT)) {
                     e.preventDefault();
 
                     δ._selectDisjoint($(this).closest('tr'));
-
-                } else if ((e.keyCode == 188 || e.keyCode == 37) && e.ctrlKey) { // Ctrl + < / Left Arrow
-                    e.preventDefault();
-
-                    if (!obj.closest('td').is(':first-child'))
-                        obj.closest('td').prev().find('input[type="text"],textarea').first().focusEnd();
-
-                } else if ((e.keyCode == 190 || e.keyCode == 39) && e.ctrlKey) { // Ctrl + > / Right Arrow
-                    e.preventDefault();
-
-                    if (!obj.closest('td').is(':last-child'))
-                        obj.closest('td').next().find('input[type="text"],textarea').first().focusEnd();
 
                 }
             });
