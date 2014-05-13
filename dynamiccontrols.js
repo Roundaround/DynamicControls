@@ -129,6 +129,8 @@
 		SEMICOLON: 186, EQUAL: 187, COMMA: 188,
 		HYPHEN: 189, PERIOD: 190, TILDE: 192,
 		APOSTROPHE: 222,
+
+        LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40,
 		
 		NUM0: 96, NUM1: 97, NUM2: 98, NUM3: 99,
 		NUM4: 100, NUM5: 101, NUM6: 102,
@@ -197,7 +199,13 @@
         keybindings: {
             UNFOCUS: new KeyBinding(Keys.ESC),
             INSERT: new KeyBinding(Keys.ENTER, Keys.Modifiers.CTRL),
-            DELETE: new KeyBinding(Keys.DELETE, Keys.Modifiers.CTRL)
+            DELETE: new KeyBinding(Keys.DELETE, Keys.Modifiers.CTRL),
+            MOVEUP: new KeyBinding(Keys.UP, Keys.Modifiers.CTRL),
+            MOVEDOWN: new KeyBinding(Keys.DOWN, Keys.Modifiers.CTRL),
+            SELECTUP: new KeyBinding(Keys.UP, Keys.Modifiers.SHIFT),
+            SELECTDOWN: new KeyBinding(Keys.DOWN, Keys.Modifiers.SHIFT),
+            CURSORUP: new KeyBinding(Keys.UP),
+            CURSORDOWN: new KeyBinding(Keys.DOWN)
         }
     };
 
@@ -275,7 +283,7 @@
 
                     δ.remove();
 
-                } else if (e.keyCode == 38 && e.ctrlKey) { // Ctrl + Up
+                } else if (keyEventMatches(e, δ.options.keybindings.MOVEUP)) {
                     e.preventDefault();
 
                     if (!obj.closest('tr').is('.dcSelected,.dcSubSelect'))
@@ -283,7 +291,7 @@
                     δ.moveUp();
                     obj.focusEnd();
 
-                } else if (e.keyCode == 40 && e.ctrlKey) { // Ctrl + Down
+                } else if (keyEventMatches(e, δ.options.keybindings.MOVEDOWN)) {
                     e.preventDefault();
 
                     if (!obj.closest('tr').is('.dcSelected,.dcSubSelect'))
@@ -291,7 +299,7 @@
                     δ.moveDown();
                     obj.focusEnd();
 
-                } else if (e.keyCode == 38 && e.shiftKey) { // Shift + Up
+                } else if (keyEventMatches(e, δ.options.keybindings.SELECTUP)) {
                     e.preventDefault();
 
                     if (table.find('.dcSelected').length == 0) {
@@ -305,7 +313,7 @@
                         δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().prev());
                     }
 
-                } else if (e.keyCode == 40 && e.shiftKey) { // Shift + Down
+                } else if (keyEventMatches(e, δ.options.keybindings.SELECTDOWN)) {
                     e.preventDefault();
 
                     if (table.find('.dcSelected').length == 0) {
@@ -319,7 +327,7 @@
                         δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().next());
                     }
 
-                } else if (e.keyCode == 38) { // Up Arrow
+                } else if (keyEventMatches(e, δ.options.keybindings.CURSORUP)) {
                     e.preventDefault();
 
                     var row = obj.closest('tr');
@@ -329,7 +337,7 @@
                     else
                         table.find('tr:last-child').find('input[type="text"],textarea').eq(num).focusEnd();
 
-                } else if (e.keyCode == 40) { // Down Arrow
+                } else if (keyEventMatches(e, δ.options.keybindings.CURSORDOWN)) {
                     e.preventDefault();
 
                     var row = obj.closest('tr');
