@@ -6,6 +6,9 @@
  *  Licensed under the LGPL v2.1 license.
 **/
 
+/// <reference path="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js" />
+/// <reference path="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.min.js" />
+
 (function ($) {
 
     if (typeof Array.prototype.repeat != 'function') {
@@ -121,7 +124,7 @@
 		CONTROL: 17, ALT: 18, CAPSLOCK: 20,
 		NUMLOCK: 144, PAGEUP: 33, PAGEDOWN: 34,
 		END: 35, HOME: 36, SCROLLLOCK: 145,
-		BREAK: 19,
+		BREAK: 19, INSERT: 45, DELETE: 46,
 		
 		SEMICOLON: 186, EQUAL: 187, COMMA: 188,
 		HYPHEN: 189, PERIOD: 190, TILDE: 192,
@@ -136,8 +139,50 @@
 		
 		F1: 112, F2: 113, F3: 114, F4: 115,
 		F5: 116, F6: 117, F7: 118, F8: 119,
-		F9: 120, F10: 121, F11: 122, F12: 123
+		F9: 120, F10: 121, F11: 122, F12: 123,
+
+        Modifiers: {
+            CTRL: 0, SHIFT: 1, ALT: 2
+        }
 	};
+
+	function KeyBinding(key, modifiers) {
+	    if (typeof key !== 'number' || key % 1 != 0)
+	        return null;
+
+	    if (typeof modifiers === 'undefined' || modifiers === null)
+	        modifiers = [];
+
+	    if (!$.isArray(modifiers) || arguments.length > 2) {
+	        var temp = modifiers;
+	        modifiers = [];
+	        modifiers[0] = temp;
+
+	        for (var i = 2; i < arguments.length; i++)
+	            modifiers[i-1] = arguments[i];
+	    }
+
+	    this.key = key;
+	    this.modifiers = modifiers;
+	}
+
+	function keyEventMatches(event, binding) {
+	    if (!(event instanceof $.Event))
+	        return false;
+	    if (!(binding instanceof KeyBinding))
+            return false;
+
+        if (event.keyCode != binding.key)
+            return false;
+        if (($.inArray(Keys.Modifiers.CTRL, binding.modifiers) != -1) == !event.ctrlKey)
+            return false;
+        if (($.inArray(Keys.Modifiers.SHIFT, binding.modifiers) != -1) == !event.shiftKey)
+            return false;
+        if (($.inArray(Keys.Modifiers.ALT, binding.modifiers) != -1) == !event.altKey)
+            return false;
+
+        return true;
+	}
 
     var DynamicControl = {};
     var $dc = DynamicControl;
@@ -148,7 +193,12 @@
         defaulttext: '',
         draggable: true,
         columns: 2,
-        rows: 2
+        rows: 2,
+        keybindings: {
+            UNFOCUS: new KeyBinding(Keys.ESC),
+            INSERT: new KeyBinding(Keys.ENTER, Keys.Modifiers.CTRL),
+            DELETE: new KeyBinding(Keys.DELETE, Keys.Modifiers.CTRL)
+        }
     };
 
     $dc.table = function (container, options) {
@@ -208,19 +258,19 @@
             });
             obj.keydown(function (e) {
                 e.stopPropagation();
-                if (e.keyCode == 27) { // Escape
+                if (keyEventMatches(e, δ.options.keybindings.UNFOCUS)) {
                     e.preventDefault();
 
                     Ω.focus();
 
-                } else if (e.keyCode == 13 && e.ctrlKey) { // Ctrl + Enter
+                } else if (keyEventMatches(e, δ.options.keybindings.INSERT)) {
                     e.preventDefault();
 
                     δ._selectSingle($(this).closest('tr'));
                     δ.insert();
                     δ._focusInSelection();
 
-                } else if (e.keyCode == 46 && e.ctrlKey) { // Ctrl + Delete
+                } else if (keyEventMatches(e, δ.options.keybindings.DELETE)) {
                     e.preventDefault();
 
                     δ.remove();
