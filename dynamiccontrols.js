@@ -103,6 +103,41 @@
             return result;
         };
     })($.fn.clone)
+	
+	var Keys = {
+		A = 65, B = 66, C = 67, D = 68, E = 69,
+		F = 70, G = 71, H = 72, I = 73, J = 74,
+		K = 75, L = 76, M = 77, N = 78, O = 79,
+		P = 80, Q = 81, R = 82, S = 83, T = 84,
+		U = 85, V = 86, W = 87, X = 88, Y = 89,
+		Z = 90,
+		
+		_0 = 48, _1 = 49, _2 = 50, _3 = 51,
+		_4 = 52, _5 = 53, _6 = 54, _7 = 55,
+		_8 = 56, _9 = 57,
+		
+		SPACE = 32, ENTER = 13, TAB = 9,
+		ESC = 27, BACKSPACE = 8, SHIFT = 16,
+		CONTROL = 17, ALT = 18, CAPSLOCK = 20,
+		NUMLOCK = 144, PAGEUP = 33, PAGEDOWN = 34,
+		END = 35, HOME = 36, SCROLLLOCK = 145,
+		BREAK = 19,
+		
+		SEMICOLON = 186, EQUAL = 187, COMMA = 188,
+		HYPHEN = 189, PERIOD = 190, TILDE = 192,
+		APOSTROPHE = 222
+		
+		NUM0 = 96, NUM1 = 97, NUM2 = 98, NUM3 = 99,
+		NUM4 = 100, NUM5 = 101, NUM6 = 102,
+		NUM7 = 103, NUM8 = 104, NUM9 = 104,
+		
+		MULTIPLY = 106, ADD = 107, SUBTRACT = 109,
+		DIVIDE = 111, DECIMAL = 110
+		
+		F1 = 112, F2 = 113, F3 = 114, F4 = 115,
+		F5 = 116, F6 = 117, F7 = 118, F8 = 119,
+		F9 = 120, F10 = 121, F11 = 122, F12 = 123
+	};
 
     var DynamicControl = {};
     var $dc = DynamicControl;
