@@ -1,13 +1,13 @@
 ﻿/**
- *  DynamicControls v1.0.2
+ *  DynamicControls v1.1.0
  *  jQuery Plugin for creating and utilizing advanced data manipulation controls.
  *  https://github.com/Roundaround/DynamicControls
  *  Copyright (c) 2013 Evan Steinkerchner
  *  Licensed under the LGPL v2.1 license.
 **/
 
-/// <reference path="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js" />
-/// <reference path="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.min.js" />
+/// <reference path="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.js" />
+/// <reference path="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.js" />
 
 (function ($) {
 
@@ -157,14 +157,19 @@
         }
 	};
 
-	function KeyBinding(key, modifiers) {
-	    if ($.isArray(key)) {
-	        for (var i = 0; i < key.length; i++) {
-	            if (typeof key[i] !== 'number' || key[i] % 1 != 0)
+	function KeyBinding(keys, modifiers) {
+	    if ($.isArray(keys)) {
+	        for (var i = 0; i < keys.length; i++) {
+	            if (typeof keys[i] !== 'number' || keys[i] % 1 != 0)
 	                return null;
 	        }
-	    } else if (typeof key !== 'number' || key % 1 != 0)
+	    } else if (typeof keys !== 'number' || keys % 1 != 0) {
 	        return null;
+	    } else {
+	        var temp = keys;
+	        keys = [];
+	        keys[0] = temp;
+	    }
 
 	    if (typeof modifiers === 'undefined' || modifiers === null)
 	        modifiers = [];
@@ -178,7 +183,7 @@
 	            modifiers[i-1] = arguments[i];
 	    }
 
-	    this.key = key;
+	    this.keys = keys;
 	    this.modifiers = modifiers;
 	}
 
@@ -186,11 +191,9 @@
 	    if (!(event instanceof $.Event))
 	        return false;
 	    if (!(binding instanceof KeyBinding))
-            return false;
-
-	    if ($.isArray(binding.key) && !$.inArray(event.keyCode, binding.key))
 	        return false;
-	    else if (event.keyCode != binding.key)
+
+	    if ($.inArray(event.keyCode, binding.keys) === -1)
 	        return false;
 
         if (($.inArray(Keys.Modifiers.CTRL, binding.modifiers) != -1) == !event.ctrlKey)
@@ -206,15 +209,23 @@
     var DynamicControl = {};
     var $dc = DynamicControl;
 
-    $dc.defaults = {
+    $dc.defaultsGlobal = {
         initial: null,
         placeholder: '',
         defaulttext: '',
-        draggable: true,
-        columns: 2,
-        rows: 2,
         keybindings: {
             UNFOCUS: new KeyBinding(Keys.ESC),
+            TOGGLE: new KeyBinding([Keys.A, Keys.T], Keys.Modifiers.ALT),
+            row: {
+                ENTERIN : new KeyBinding([Keys.TAB, Keys.E]),
+            }
+        }
+    };
+
+    $dc.defaultsRows = {
+        draggable: true,
+        rows: 2,
+        keybindings: {
             INSERT: new KeyBinding(Keys.ENTER, Keys.Modifiers.CTRL),
             DELETE: new KeyBinding(Keys.DELETE, Keys.Modifiers.CTRL),
             MOVEUP: new KeyBinding(Keys.UP, Keys.Modifiers.CTRL),
@@ -223,10 +234,27 @@
             SELECTDOWN: new KeyBinding(Keys.DOWN, Keys.Modifiers.SHIFT),
             CURSORUP: new KeyBinding(Keys.UP),
             CURSORDOWN: new KeyBinding(Keys.DOWN),
+            SELECT: new KeyBinding(Keys.S, Keys.Modifiers.ALT),
+            row: {
+                UNFOCUS: new KeyBinding(Keys.ESC),
+                INSERT: new KeyBinding(Keys.N),
+                DELETE: new KeyBinding(Keys.DELETE),
+                MOVEUP: new KeyBinding([Keys.J, Keys.UP], Keys.Modifiers.CTRL),
+                MOVEDOWN: new KeyBinding([Keys.K, Keys.DOWN], Keys.Modifiers.CTRL),
+                SELECTUP: new KeyBinding([Keys.J, Keys.UP], Keys.Modifiers.SHIFT),
+                SELECTDOWN: new KeyBinding([Keys.K, Keys.DOWN], Keys.Modifiers.SHIFT),
+                SELECTABOVE: new KeyBinding([Keys.J, Keys.UP]),
+                SELECTBELOW: new KeyBinding([Keys.K, Keys.DOWN]),
+                TOGGLE: new KeyBinding([Keys.A, Keys.T], Keys.Modifiers.ALT)
+            }
+        }
+    };
+
+    $dc.defaultColumns = {
+        columns: 2,
+        keybindings: {
             CURSORLEFT: new KeyBinding([Keys.LEFT, Keys.LESS], Keys.Modifiers.CTRL),
-            CURSORRIGHT: new KeyBinding([Keys.RIGHT, Keys.GREATER], Keys.Modifiers.CTRL),
-            TOGGLE: new KeyBinding([Keys.A, Keys.T], Keys.Modifiers.ALT),
-            SELECT: new KeyBinding(Keys.S, Keys.Modifiers.ALT)
+            CURSORRIGHT: new KeyBinding([Keys.RIGHT, Keys.GREATER], Keys.Modifiers.CTRL)
         }
     };
 
@@ -479,79 +507,72 @@
 
                 Ω.unbind('keydown');
                 Ω.keydown(function (e) {
-                    if (e.keyCode == 27) { // Escape
+                    if (keyEventMatches(e, δ.options.keybindings.row.UNFOCUS)) {
                         e.preventDefault();
                         if (table.find('.dcSelected,.dcSubSelect').length > 0)
                             δ.deselectAll();
                         else
                             Ω.blur();
-                    } else if (e.keyCode == 78) { // N
+                    } else if (keyEventMatches(e, δ.options.keybindings.row.INSERT)) {
                         e.preventDefault();
                         if (!δ._isDisjoint())
                             δ.insert();
-                    } else if (e.keyCode == 69) { // E
+                    } else if (keyEventMatches(e, δ.options.keybindings.row.DELETE)) {
+                        e.preventDefault();
+                        δ.remove();
+                    } else if (keyEventMatches(e, δ.options.keybindings.row.ENTERIN)) {
                         e.preventDefault();
                         δ._focusInSelection();
-                    } else if (e.keyCode == 9) { // Tab
-                        e.preventDefault();
-                        δ._focusInSelection();
-                    } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                    } else if (keyEventMatches(e, δ.options.keybindings.row.TOGGLE)) {
                         e.preventDefault();
                         table.find('.dcSelected > td,.dcSubSelect > td').each(function () {
                             δ._toggleInput(this);
                         });
-                    } else if (e.keyCode == 46) { // Delete
+                    } else if (table.find('.dcSelected,.dcSubSelect').length > 0 && keyEventMatches(e, δ.options.keybindings.row.MOVEUP)) {
                         e.preventDefault();
-                        δ.remove();
-                    } else if (e.keyCode == 38 || e.keyCode == 74) { // Up Arrow / J
-                        if (table.find('.dcSelected,.dcSubSelect').length > 0) {
-                            e.preventDefault();
-                            if (e.ctrlKey) { // + Ctrl
-                                δ.moveUp();
-                            } else if (e.shiftKey) { // + Shift
-                                if (table.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
-                                    if (!table.find('.dcSelected,.dcSubSelect').is(':first-child')) {
-                                        δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().prev());
-                                    }
-                                } else {
-                                    δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().prev());
-                                }
-                            } else {
-                                δ._deselectSub();
-                                if (table.find('.dcSelected').is(':first-child')) {
-                                    δ._selectSingle(table.find('tr:last-child'));
-                                } else {
-                                    δ._selectSingle(table.find('.dcSelected').prev());
-                                }
-                            }
+                        δ.moveUp();
+                    } else if (table.find('.dcSelected,.dcSubSelect').length > 0 && keyEventMatches(e, δ.options.keybindings.row.SELECTUP)) {
+                        e.preventDefault();
+                        if (table.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
+                            if (!table.find('.dcSelected,.dcSubSelect').is(':first-child'))
+                                δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().prev());
                         } else {
-                            e.preventDefault();
+                            δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().prev());
+                        }
+                    } else if (table.find('.dcSelected,.dcSubSelect').length > 0 && keyEventMatches(e, δ.options.keybindings.row.SELECTABOVE)) {
+                        e.preventDefault();
+                        δ._deselectSub();
+                        if (table.find('.dcSelected').is(':first-child')) {
                             δ._selectSingle(table.find('tr:last-child'));
+                        } else {
+                            δ._selectSingle(table.find('.dcSelected').prev());
                         }
-                    } else if (e.keyCode == 40 || e.keyCode == 75) { // Down Arrow / K
+                    } else if (keyEventMatches(e, δ.options.keybindings.row.SELECTABOVE)) {
                         e.preventDefault();
-                        if (table.find('.dcSelected,.dcSubSelect').length > 0) {
-                            if (e.ctrlKey) { // + Ctrl
-                                δ.moveDown();
-                            } else if (e.shiftKey) { // + Shift
-                                if (table.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
-                                    if (!table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
-                                        δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().next());
-                                    }
-                                } else {
-                                    δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().next());
-                                }
-                            } else {
-                                δ._deselectSub();
-                                if (table.find('.dcSelected').is(':last-child')) {
-                                    δ._selectSingle(table.find('tr:first-child'));
-                                } else {
-                                    δ._selectSingle(table.find('.dcSelected').next());
-                                }
+                        δ._selectSingle(table.find('tr:last-child'));
+                    } else if (table.find('.dcSelected,.dcSubSelect').length > 0 && keyEventMatches(e, δ.options.keybindings.row.MOVEDOWN)) {
+                        e.preventDefault();
+                        δ.moveDown();
+                    } else if (table.find('.dcSelected,.dcSubSelect').length > 0 && keyEventMatches(e, δ.options.keybindings.row.SELECTDOWN)) {
+                        e.preventDefault();
+                        if (table.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
+                            if (!table.find('.dcSelected,.dcSubSelect').is(':last-child')) {
+                                δ._selectRange(table.find('.dcSelected,.dcSubSelect').last().next());
                             }
                         } else {
-                            δ._selectSingle(table.find('tr:first-child'));
+                            δ._selectRange(table.find('.dcSelected,.dcSubSelect').first().next());
                         }
+                    } else if (table.find('.dcSelected,.dcSubSelect').length > 0 && keyEventMatches(e, δ.options.keybindings.row.SELECTBELOW)) {
+                        e.preventDefault();
+                        δ._deselectSub();
+                        if (table.find('.dcSelected').is(':last-child')) {
+                            δ._selectSingle(table.find('tr:first-child'));
+                        } else {
+                            δ._selectSingle(table.find('.dcSelected').next());
+                        }
+                    } else if (keyEventMatches(e, δ.options.keybindings.row.SELECTBELOW)) {
+                        e.preventDefault();
+                        δ._selectSingle(table.find('tr:first-child'));
                     }
                     δ._updateData();
                 });
@@ -1121,24 +1142,24 @@
             });
             obj.keydown(function (e) {
                 e.stopPropagation();
-                if (e.keyCode == 27) { // Escape
+                if (keyEventMatches(e, δ.options.keybindings.UNFOCUS)) {
                     e.preventDefault();
 
                     Ω.focus();
 
-                } else if (e.keyCode == 13 && e.ctrlKey) { // Ctrl + Enter
+                } else if (keyEventMatches(e, δ.options.keybindings.INSERT)) {
                     e.preventDefault();
 
                     δ._selectSingle($(this).closest('li'));
                     δ.insert();
                     δ._focusInSelection();
 
-                } else if (e.keyCode == 46 && e.ctrlKey) { // Ctrl + Delete
+                } else if (keyEventMatches(e, δ.options.keybindings.DELETE)) {
                     e.preventDefault();
 
                     δ.remove();
 
-                } else if (e.keyCode == 38 && e.ctrlKey) { // Ctrl + Up
+                } else if (keyEventMatches(e, δ.options.keybindings.MOVEUP)) {
                     e.preventDefault();
 
                     if (!obj.closest('li').is('.dcSelected,.dcSubSelect'))
@@ -1146,7 +1167,7 @@
                     δ.moveUp();
                     obj.focusEnd();
 
-                } else if (e.keyCode == 40 && e.ctrlKey) { // Ctrl + Down
+                } else if (keyEventMatches(e, δ.options.keybindings.MOVEDOWN)) {
                     e.preventDefault();
 
                     if (!obj.closest('li').is('.dcSelected,.dcSubSelect'))
@@ -1154,7 +1175,7 @@
                     δ.moveDown();
                     obj.focusEnd();
 
-                } else if (e.keyCode == 38 && e.shiftKey) { // Shift + Up
+                } else if (keyEventMatches(e, δ.options.keybindings.SELECTUP)) {
                     e.preventDefault();
 
                     if (list.find('.dcSelected').length == 0) {
@@ -1167,7 +1188,7 @@
                         δ._selectRange(list.find('.dcSelected,.dcSubSelect').last().prev());
                     }
 
-                } else if (e.keyCode == 40 && e.shiftKey) { // Shift + Down
+                } else if (keyEventMatches(e, δ.options.keybindings.SELECTDOWN)) {
                     e.preventDefault();
 
                     if (list.find('.dcSelected').length == 0) {
@@ -1180,7 +1201,7 @@
                         δ._selectRange(list.find('.dcSelected,.dcSubSelect').first().next());
                     }
 
-                } else if (e.keyCode == 38) { // Up Arrow
+                } else if (keyEventMatches(e, δ.options.keybindings.CURSORUP)) {
                     e.preventDefault();
 
                     var row = obj.closest('li');
@@ -1189,7 +1210,7 @@
                     else
                         list.find('li:last-child').find('input[type="text"],textarea').first().focusEnd();
 
-                } else if (e.keyCode == 40) { // Down Arrow
+                } else if (keyEventMatches(e, δ.options.keybindings.CURSORDOWN)) {
                     e.preventDefault();
 
                     var row = obj.closest('li');
@@ -1198,14 +1219,14 @@
                     else
                         list.find('li:first-child').find('input[type="text"],textarea').first().focusEnd();
 
-                } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                } else if (keyEventMatches(e, δ.options.keybindings.TOGGLE)) {
                     e.preventDefault();
 
                     var parent = $(this).parent();
                     δ._toggleInput(parent);
                     parent.find('input[type="text"],textarea').first().focusEnd();
 
-                } else if (e.keyCode == 83 && e.altKey) { // Alt + S
+                } else if (keyEventMatches(e, δ.options.keybindings.SELECT)) {
                     e.preventDefault();
 
                     δ._selectDisjoint($(this).closest('li'));
@@ -1293,75 +1314,72 @@
             }
 
             Ω.keydown(function (e) {
-                if (e.keyCode == 27) { // Escape
+                if (keyEventMatches(e, δ.options.keybindings.row.UNFOCUS)) {
                     e.preventDefault();
                     if (list.find('.dcSelected,.dcSubSelect').length > 0)
                         δ.deselectAll();
                     else
                         Ω.blur();
-                } else if (e.keyCode == 78) { // N
+                } else if (keyEventMatches(e, δ.options.keybindings.row.INSERT)) {
                     e.preventDefault();
                     if (!δ._isDisjoint())
                         δ.insert();
-                } else if (e.keyCode == 69) { // E
+                } else if (keyEventMatches(e, δ.options.keybindings.row.DELETE)) {
+                    e.preventDefault();
+                    δ.remove();
+                } else if (keyEventMatches(e, δ.options.keybindings.row.ENTERIN)) {
                     e.preventDefault();
                     δ._focusInSelection();
-                } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                } else if (keyEventMatches(e, δ.options.keybindings.row.TOGGLE)) {
                     e.preventDefault();
                     list.find('.dcSelected > div,.dcSubSelect > div').each(function () {
                         δ._toggleInput(this);
                     });
-                } else if (e.keyCode == 46) { // Delete
+                } else if (list.find('.dcSelected,.dcSubSelect').length > 0 && keyEventMatches(e, δ.options.keybindings.row.MOVEUP)) {
                     e.preventDefault();
-                    δ.remove();
-                } else if (e.keyCode == 38 || e.keyCode == 74) { // Up Arrow / J
+                    δ.moveUp();
+                } else if (list.find('.dcSelected,.dcSubSelect').length > 0 && keyEventMatches(e, δ.options.keybindings.row.SELECTUP)) {
                     e.preventDefault();
-                    if (list.find('.dcSelected,.dcSubSelect').length > 0) {
-                        if (e.ctrlKey) { // + Ctrl
-                            δ.moveUp();
-                        } else if (e.shiftKey) { // + Shift
-                            if (list.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
-                                if (!list.find('.dcSelected,.dcSubSelect').is(':first-child')) {
-                                    δ._selectRange(list.find('.dcSelected,.dcSubSelect').first().prev());
-                                }
-                            } else {
-                                δ._selectRange(list.find('.dcSelected,.dcSubSelect').last().prev());
-                            }
-                        } else {
-                            δ._deselectSub();
-                            if (list.find('.dcSelected').is(':first-child')) {
-                                δ._selectSingle(list.find('li:last-child'));
-                            } else {
-                                δ._selectSingle(list.find('.dcSelected').prev());
-                            }
-                        }
+                    if (list.find('.dcSelected,.dcSubSelect').last().is('.dcSelected')) {
+                        if (!list.find('.dcSelected,.dcSubSelect').is(':first-child'))
+                            δ._selectRange(list.find('.dcSelected,.dcSubSelect').first().prev());
                     } else {
+                        δ._selectRange(list.find('.dcSelected,.dcSubSelect').last().prev());
+                    }
+                } else if (list.find('.dcSelected,.dcSubSelect').length > 0 && keyEventMatches(e, δ.options.keybindings.row.SELECTABOVE)) {
+                    e.preventDefault();
+                    δ._deselectSub();
+                    if (list.find('.dcSelected').is(':first-child')) {
                         δ._selectSingle(list.find('li:last-child'));
+                    } else {
+                        δ._selectSingle(list.find('.dcSelected').prev());
                     }
-                } else if (e.keyCode == 40 || e.keyCode == 75) { // Down Arrow / K
+                } else if (keyEventMatches(e, δ.options.keybindings.row.SELECTABOVE)) {
                     e.preventDefault();
-                    if (list.find('.dcSelected,.dcSubSelect').length > 0) {
-                        if (e.ctrlKey) { // + Ctrl
-                            δ.moveDown();
-                        } else if (e.shiftKey) { // + Shift
-                            if (list.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
-                                if (!list.find('.dcSelected,.dcSubSelect').is(':last-child')) {
-                                    δ._selectRange(list.find('.dcSelected,.dcSubSelect').last().next());
-                                }
-                            } else {
-                                δ._selectRange(list.find('.dcSelected,.dcSubSelect').first().next());
-                            }
-                        } else {
-                            δ._deselectSub();
-                            if (list.find('.dcSelected').is(':last-child')) {
-                                δ._selectSingle(list.find('li:first-child'));
-                            } else {
-                                δ._selectSingle(list.find('.dcSelected').next());
-                            }
+                    δ._selectSingle(list.find('li:last-child'));
+                } else if (list.find('.dcSelected,.dcSubSelect').length > 0 && keyEventMatches(e, δ.options.keybindings.row.MOVEDOWN)) {
+                    e.preventDefault();
+                    δ.moveDown();
+                } else if (list.find('.dcSelected,.dcSubSelect').length > 0 && keyEventMatches(e, δ.options.keybindings.row.SELECTDOWN)) {
+                    e.preventDefault();
+                    if (list.find('.dcSelected,.dcSubSelect').first().is('.dcSelected')) {
+                        if (!list.find('.dcSelected,.dcSubSelect').is(':last-child')) {
+                            δ._selectRange(list.find('.dcSelected,.dcSubSelect').last().next());
                         }
                     } else {
-                        δ._selectSingle(list.find('li:first-child'));
+                        δ._selectRange(list.find('.dcSelected,.dcSubSelect').first().next());
                     }
+                } else if (list.find('.dcSelected,.dcSubSelect').length > 0 && keyEventMatches(e, δ.options.keybindings.row.SELECTBELOW)) {
+                    e.preventDefault();
+                    δ._deselectSub();
+                    if (list.find('.dcSelected').is(':last-child')) {
+                        δ._selectSingle(list.find('li:first-child'));
+                    } else {
+                        δ._selectSingle(list.find('.dcSelected').next());
+                    }
+                } else if (keyEventMatches(e, δ.options.keybindings.row.SELECTBELOW)) {
+                    e.preventDefault();
+                    δ._selectSingle(list.find('li:first-child'));
                 }
                 δ._updateData();
             });
@@ -1900,12 +1918,12 @@
             });
             obj.keydown(function (e) {
                 e.stopPropagation();
-                if (e.keyCode == 27) { // Escape
+                if (keyEventMatches(e, δ.options.keybindings.UNFOCUS)) {
                     e.preventDefault();
 
                     Ω.focus();
 
-                } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                } else if (keyEventMatches(e, δ.options.keybindings.TOGGLE)) {
                     e.preventDefault();
 
                     var parent = $(this).parent();
@@ -1967,13 +1985,13 @@
             }
 
             Ω.keydown(function (e) {
-                if (e.keyCode == 27) { // Escape
+                if (keyEventMatches(e, δ.options.keybindings.row.UNFOCUS)) {
                     e.preventDefault();
                     Ω.blur();
-                } else if (e.keyCode == 69) { // E
+                } else if (keyEventMatches(e, δ.options.keybindings.row.ENTERIN)) {
                     e.preventDefault();
                     δ._focusInput();
-                } else if ((e.keyCode == 84 || e.keyCode == 65) && e.altKey) { // Alt + T / A
+                } else if (keyEventMatches(e, δ.options.keybindings.row.TOGGLE)) {
                     e.preventDefault();
                     δ._toggleInput(Ω.find('.dcText'));
                 }
@@ -2098,7 +2116,7 @@
         if (typeof arg === 'string') {
             // We are calling a command here.
             var control = Ω.data('dynamictable'),
-                options = $.extend({}, $dc.defaults, control);
+                options = $.extend(true, {}, $dc.defaultsGlobal, $dc.defaultsRows, $dc.defaultColumns, control);
 
             if (!control)
                 Ω.data('dynamictable', (control = new $dc.table(Ω, options)))
@@ -2114,7 +2132,7 @@
 
         } else if (isArrayOfArrays(arg)) {
             // We are initializing with initial data.
-            var options = $.extend({}, $dc.defaults, { initial: arg }),
+            var options = $.extend(true, {}, $dc.defaultsGlobal, $dc.defaultsRows, $dc.defaultColumns, { initial: arg }),
                 control = new $dc.table(Ω, options);
 
             control._init();
@@ -2122,7 +2140,7 @@
 
         } else if (typeof arg === 'object') {
             // We are initializing with options.
-            var options = $.extend({}, $dc.defaults, arg),
+            var options = $.extend(true, {}, $dc.defaultsGlobal, $dc.defaultsRows, $dc.defaultColumns, arg),
                 control = new $dc.table(Ω, options);
 
             control._init();
@@ -2142,7 +2160,7 @@
         if (typeof arg === 'string') {
             // We are calling a command here.
             var control = Ω.data('dynamiclist'),
-                options = $.extend({}, $dc.defaults, control);
+                options = $.extend(true, {}, $dc.defaultsGlobal, $dc.defaultsRows, control);
 
             if (!control)
                 Ω.data('dynamiclist', (control = new $dc.list(Ω, options)))
@@ -2158,7 +2176,7 @@
 
         } else if ($.isArray(arg)) {
             // We are initializing with initial data.
-            var options = $.extend({}, $dc.defaults, { initial: arg }),
+            var options = $.extend(true, {}, $dc.defaultsGlobal, $dc.defaultsRows, { initial: arg }),
                 control = new $dc.list(Ω, options);
 
             control._init();
@@ -2166,7 +2184,7 @@
 
         } else if (typeof arg === 'object') {
             // We are initializing with options.
-            var options = $.extend({}, $dc.defaults, arg),
+            var options = $.extend(true, {}, $dc.defaultsGlobal, $dc.defaultsRows, arg),
                 control = new $dc.list(Ω, options);
 
             control._init();
@@ -2186,7 +2204,7 @@
         if (typeof arg === 'string') {
             // We are calling a command here.
             var control = Ω.data('dynamictext'),
-                options = $.extend({}, $dc.defaults, control);
+                options = $.extend({}, $dc.defaultsGlobal, control);
 
             if (!control)
                 Ω.data('dynamictext', (control = new $dc.text(Ω, options)))
@@ -2202,7 +2220,7 @@
 
         } else if (typeof arg === 'object') {
             // We are initializing with options.
-            var options = $.extend({}, $dc.defaults, arg),
+            var options = $.extend({}, $dc.defaultsGlobal, arg),
                 control = new $dc.text(Ω, options);
 
             control._init();

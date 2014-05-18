@@ -1,6 +1,6 @@
 #DynamicControls
 
-DynamicControls v1.0.2  
+DynamicControls v1.1.0 
 jQuery plugin for creating utilizing advanced data manipulation controls.  
 https://github.com/Roundaround/DynamicControls  
 http://dynamiccontrols.roundaround.me  
@@ -8,6 +8,11 @@ Copyright (c) 2013 Evan Steinkerchner
 Licensed under the LGPL v2.1 license.  
 
 ###Changelog
+* **1.1.0** *2014-05-18*
+    - Added library of keyboard key codes. (Issue 16)
+    - Set keyboard events to compare against KeyBinding objects. (Issue 16)
+    - Added KeyBinding objects to defaults/options. (Issue 16)
+    - Separated defaults objects to three levels.  Global, Row, and Column. (Issue 13)
 * **1.0.2** *2014-04-29*
     - Cleaned distribution package and repo contents.
     - Added minified copies of .js and .css files. (Issue 14)
